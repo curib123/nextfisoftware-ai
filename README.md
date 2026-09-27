@@ -9,7 +9,7 @@ Vrompt is a private multi-model AI workspace built as one **Next.js full-stack a
 - Supabase Auth with PKCE OAuth and HttpOnly refresh cookies
 - Google OAuth for normal user sign-in
 - Supabase private Storage for uploads and generated images
-- OpenAI, Google, Anthropic, and Mistral server-side provider adapters
+- OpenAI, Google, Anthropic, Mistral, and NVIDIA server-side provider adapters
 - PayMongo checkout + signed webhooks
 - Vercel-ready deployment with no Docker runtime
 
@@ -20,9 +20,11 @@ NestJS, Prisma, Redis, Docker, Nginx, and the self-hosted PostgreSQL runtime hav
 1. Use the dedicated Vrompt Supabase project `ytzjrztxmnhqtokycenw`.
 2. The hosted schema is already provisioned from `supabase/migrations/20260927130707_nextjs_fullstack.sql`; apply that baseline only when creating a fresh environment.
 3. Copy `.env.example` to `.env`. The project URL and publishable key are prefilled; add the server-only `SUPABASE_SECRET_KEY` from the Vrompt project's API Keys settings.
-4. Configure any AI provider keys you want to enable.
-5. Configure Google under **Supabase Auth → Providers → Google** for user sign-in.
-6. Run:
+4. Add `NVIDIA_API_KEY` to discover and verify NVIDIA hosted developer endpoints for the Free plan; keep `MISTRAL_API_KEY` as the Free fallback.
+5. Add `VROMPT_CREDENTIAL_ENCRYPTION_KEY` if users should be able to save their own provider API keys.
+6. Configure any other shared AI provider keys you want to enable.
+7. Configure Google under **Supabase Auth → Providers → Google** for user sign-in.
+8. Run:
 
 ```bash
 npm ci
@@ -60,12 +62,14 @@ One credit budgets at most **US$0.008** of provider work. Default monthly provid
 
 | Plan | Price | Credits | Max modeled AI cost |
 | --- | ---: | ---: | ---: |
-| Free (Mistral only) | $0 | 30 | $0.24 |
+| Free (verified NVIDIA + Mistral fallback) | $0 | 30 | $0.24 shared-provider ceiling |
 | Starter | $5.99 | 100 | $0.80 |
 | Pro | $11.99 | 250 | $2.00 |
 | Max | $24.99 | 600 | $4.80 |
 
-Free accounts route chat exclusively through the Mistral API. Paid plans can use multi-model Auto routing and eligible manual models; premium/manual models consume more credits according to their configured bounded cost. Admin analytics report revenue, AI cost, variable cost, contribution profit, and margin.
+Free accounts can use NVIDIA hosted chat endpoints only after Vrompt confirms them with a successful live completion request; Mistral remains the fallback. NVIDIA-hosted developer access is externally rate-limited and should not be treated as unlimited infrastructure. Paid plans can use the configured multi-model pool and eligible manual models.
+
+Users can also connect their own NVIDIA, OpenAI, Google AI, Anthropic, or Mistral API key. BYO requests use the user's provider account and consume zero Vrompt AI credits, while Vrompt still enforces request, concurrency, and safety limits. Saved BYO keys are encrypted server-side and never returned in plaintext. Admin analytics keep BYO provider cost at zero because that cost belongs to the user's provider account.
 
 ## Production
 
