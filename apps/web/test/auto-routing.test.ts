@@ -11,11 +11,12 @@ const originalEnv = { ...process.env };
 function model(
   overrides: Partial<DbModel> & Pick<DbModel, 'id' | 'provider' | 'display_name'>,
 ): DbModel {
+  const { id, provider, display_name, ...rest } = overrides;
   return {
-    id: overrides.id,
-    provider: overrides.provider,
-    provider_model_id: overrides.id,
-    display_name: overrides.display_name,
+    id,
+    provider,
+    provider_model_id: id,
+    display_name,
     description: 'General AI model',
     category: 'general',
     capabilities: ['text'],
@@ -40,7 +41,7 @@ function model(
     currency: 'USD',
     best_for: ['General chat'],
     health_status: 'UNKNOWN',
-    ...overrides,
+    ...rest,
   };
 }
 
