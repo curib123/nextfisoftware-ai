@@ -12,7 +12,7 @@ export class SupabaseHttpError extends Error {
 
 function required(name: string) {
   const value = process.env[name]?.trim();
-  if (!value) throw new Error(\`Missing required environment variable: \${name}\`);
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
   return value;
 }
 
@@ -41,9 +41,9 @@ export async function supabaseFetch(
   const key = admin ? secretKey() : publishableKey();
   const headers = new Headers(requestInit.headers);
   headers.set('apikey', key);
-  if (token) headers.set('authorization', \`Bearer \${token}\`);
-  else if (admin) headers.set('authorization', \`Bearer \${key}\`);
-  const response = await fetch(\`\${supabaseUrl()}\${path}\`, {
+  if (token) headers.set('authorization', `Bearer ${token}`);
+  else if (admin) headers.set('authorization', `Bearer ${key}`);
+  const response = await fetch(`${supabaseUrl()}${path}`, {
     ...requestInit,
     headers,
     cache: 'no-store',
@@ -89,7 +89,7 @@ export async function rest<T>(table: string, options: RestOptions = {}) {
   const headers = new Headers(options.headers);
   if (options.prefer) headers.set('prefer', options.prefer);
   return jsonRequest<T>(
-    \`/rest/v1/\${table}\${options.query ? \`?\${options.query}\` : ''}\`,
+    `/rest/v1/${table}${options.query ? `?${options.query}` : ''}`,
     {
       method: options.method ?? 'GET',
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -105,7 +105,7 @@ export async function rpc<T>(
   body: Record<string, unknown>,
   admin = true,
 ) {
-  return jsonRequest<T>(\`/rest/v1/rpc/\${name}\`, {
+  return jsonRequest<T>(`/rest/v1/rpc/${name}`, {
     method: 'POST',
     body: JSON.stringify(body),
     admin,
@@ -116,14 +116,14 @@ export async function authJson<T>(
   path: string,
   init: Omit<SupabaseRequestInit, 'admin'> = {},
 ) {
-  return jsonRequest<T>(\`/auth/v1\${path}\`, init);
+  return jsonRequest<T>(`/auth/v1${path}`, init);
 }
 
 export async function authAdminJson<T>(
   path: string,
   init: RequestInit = {},
 ) {
-  return jsonRequest<T>(\`/auth/v1/admin\${path}\`, { ...init, admin: true });
+  return jsonRequest<T>(`/auth/v1/admin${path}`, { ...init, admin: true });
 }
 
 export async function storageUpload(
@@ -132,7 +132,7 @@ export async function storageUpload(
   contentType: string,
 ) {
   const response = await supabaseFetch(
-    \`/storage/v1/object/vrompt-private/\${encodeStoragePath(path)}\`,
+    `/storage/v1/object/vrompt-private/${encodeStoragePath(path)}`,
     {
       method: 'POST',
       admin: true,
@@ -149,7 +149,7 @@ export async function storageUpload(
 
 export async function storageDownload(path: string) {
   const response = await supabaseFetch(
-    \`/storage/v1/object/vrompt-private/\${encodeStoragePath(path)}\`,
+    `/storage/v1/object/vrompt-private/${encodeStoragePath(path)}`,
     { admin: true },
   );
   if (!response.ok) throw await parseError(response);
@@ -158,7 +158,7 @@ export async function storageDownload(path: string) {
 
 export async function storageDelete(path: string) {
   const response = await supabaseFetch(
-    \`/storage/v1/object/vrompt-private/\${encodeStoragePath(path)}\`,
+    `/storage/v1/object/vrompt-private/${encodeStoragePath(path)}`,
     { method: 'DELETE', admin: true },
   );
   if (!response.ok && response.status !== 404) throw await parseError(response);
@@ -169,9 +169,9 @@ function encodeStoragePath(path: string) {
 }
 
 export function eq(value: string) {
-  return encodeURIComponent(\`eq.\${value}\`);
+  return encodeURIComponent(`eq.${value}`);
 }
 
 export function contains(value: string) {
-  return encodeURIComponent(\`*\${value.replaceAll('*', '')}*\`);
+  return encodeURIComponent(`*${value.replaceAll('*', '')}*`);
 }
