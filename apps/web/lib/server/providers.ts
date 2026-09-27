@@ -57,7 +57,7 @@ async function request(
   if (!response.ok) {
     await response.body?.cancel();
     throw new ProviderFailure(
-      \`HTTP_\${response.status}\`,
+      `HTTP_${response.status}`,
       response.status === 408 || response.status === 429 || response.status >= 500,
     );
   }
@@ -124,17 +124,17 @@ async function openai(
               ...(model.provider_model_id === 'gpt-4o-mini'
                 ? { detail: 'low' }
                 : {}),
-              image_url: \`data:\${file.mimeType};base64,\${b64(file.data)}\`,
+              image_url: `data:${file.mimeType};base64,${b64(file.data)}`,
             }
           : file.mimeType === 'text/plain'
             ? {
                 type: 'input_text',
-                text: \`File \${file.name}:\n\${new TextDecoder().decode(file.data)}\`,
+                text: `File ${file.name}:\n${new TextDecoder().decode(file.data)}`,
               }
             : {
                 type: 'input_file',
                 filename: file.name,
-                file_data: \`data:\${file.mimeType};base64,\${b64(file.data)}\`,
+                file_data: `data:${file.mimeType};base64,${b64(file.data)}`,
               },
       ),
     ];
@@ -142,7 +142,7 @@ async function openai(
 
   const body = await request(
     'https://api.openai.com/v1/responses',
-    { authorization: \`Bearer \${key}\` },
+    { authorization: `Bearer ${key}` },
     {
       model: model.provider_model_id,
       input,
@@ -221,7 +221,7 @@ async function google(
     ...files.map((file) =>
       file.mimeType === 'text/plain'
         ? {
-            text: \`File \${file.name}:\n\${new TextDecoder().decode(file.data)}\`,
+            text: `File ${file.name}:\n${new TextDecoder().decode(file.data)}`,
           }
         : {
             inlineData: {
@@ -233,7 +233,7 @@ async function google(
   );
 
   const body = await request(
-    \`https://generativelanguage.googleapis.com/v1beta/models/\${encodeURIComponent(model.provider_model_id)}:streamGenerateContent?alt=sse\`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.provider_model_id)}:streamGenerateContent?alt=sse`,
     { 'x-goog-api-key': key },
     {
       contents,
@@ -309,7 +309,7 @@ async function anthropic(
       file.mimeType === 'text/plain'
         ? {
             type: 'text',
-            text: \`File \${file.name}:\n\${new TextDecoder().decode(file.data)}\`,
+            text: `File ${file.name}:\n${new TextDecoder().decode(file.data)}`,
           }
         : {
             type: file.mimeType.startsWith('image/') ? 'image' : 'document',
@@ -382,13 +382,13 @@ async function mistral(
       if (file.mimeType === 'text/plain')
         content.push({
           type: 'text',
-          text: \`File \${file.name}:\n\${new TextDecoder().decode(file.data)}\`,
+          text: `File ${file.name}:\n${new TextDecoder().decode(file.data)}`,
         });
       else if (file.mimeType.startsWith('image/'))
         content.push({
           type: 'image_url',
           image_url: {
-            url: \`data:\${file.mimeType};base64,\${b64(file.data)}\`,
+            url: `data:${file.mimeType};base64,${b64(file.data)}`,
           },
         });
       else throw new ProviderFailure('UNSUPPORTED_FILE', false);
@@ -398,7 +398,7 @@ async function mistral(
 
   const body = await request(
     'https://api.mistral.ai/v1/chat/completions',
-    { authorization: \`Bearer \${key}\` },
+    { authorization: `Bearer ${key}` },
     {
       model: model.provider_model_id,
       messages: input,
