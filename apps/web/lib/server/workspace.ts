@@ -919,7 +919,13 @@ async function runWorkflow(request: Request, user: Authenticated, workflowId: st
     const system = projectSystem(project, cfg.plan);
     for (const step of workflow.steps) {
       const policy = findPolicy(cfg.policies, step.modelId ? 'MANUAL' : 'AUTO', step.modelId);
-      const model = resolveModel(cfg.models, policy, step.modelId ? 'MANUAL' : 'AUTO', 'chat');
+      const model = resolveModel(
+        cfg.models,
+        policy,
+        step.modelId ? 'MANUAL' : 'AUTO',
+        'chat',
+        { prompt },
+      );
       if (!model) throw new ApiError('No configured model is available for this workflow step.', 503);
       const prompt = `${step.prompt}\n\nInput:\n${value}`;
       value = await generateOnce(user, cfg.plan, policy, model, conversation.id, prompt, system);
@@ -1078,6 +1084,22 @@ export async function streamMessage(
   const attachmentIds = Array.isArray(input.attachmentIds)
     ? input.attachmentIds.map((value) => uuid(value, 'Attachment ID'))
     : [];
+  const selectedAttachments = await selectedAttachmentRows(
+    user,
+    id,
+    attachmentIds,
+  );
+  const requiredCapabilities = [
+    ...new Set(
+      selectedAttachments.flatMap((file) =>
+        file.mime_type === 'application/pdf'
+          ? ['files']
+          : file.mime_type.startsWith('image/')
+            ? ['vision']
+            : [],
+      ),
+    ),
+  ];
   const cfg = await configuration(user.profile.id);
   let policy: DbPolicy;
   let model: DbModel | undefined;
@@ -1097,7 +1119,10 @@ export async function streamMessage(
       );
   } else {
     policy = findPolicy(cfg.policies, mode, modelId);
-    model = resolveModel(cfg.models, policy, mode, feature);
+    model = resolveModel(cfg.models, policy, mode, feature, {
+      prompt: content,
+      requiredCapabilities,
+    });
   }
 
   if (!policy.allowed_features.includes(feature))
@@ -1137,7 +1162,7 @@ export async function streamMessage(
       );
   }
 
-  const files = await loadFiles(user, id, attachmentIds, policy, model);
+  const files = await loadFiles(selectedAttachments, policy, model);
   const fingerprint = createHash('sha256')
     .update(JSON.stringify({ id, content, attachmentIds, feature, mode, modelId }))
     .digest('hex');
@@ -1339,8 +1364,13 @@ function resolveModel(
   policy: DbPolicy,
   mode: 'AUTO' | 'MANUAL',
   feature: CreditFeature,
+  context: {
+    prompt?: string;
+    requiredCapabilities?: string[];
+  } = {},
 ) {
-  if (mode === 'AUTO') return chooseAutoModel(models, policy, feature);
+  if (mode === 'AUTO')
+    return chooseAutoModel(models, policy, feature, context);
   const model = models.find((item) => item.id === policy.model_id);
   if (
     !model ||
@@ -1469,29 +1499,46 @@ async function recordUsage(
   });
 }
 
-async function loadFiles(
+async function selectedAttachmentRows(
   user: Authenticated,
   conversationId: string,
   ids: string[],
-  policy: DbPolicy,
-  model: DbModel,
-): Promise<ProviderFile[]> {
+) {
   if (!ids.length) return [];
   const rows = await rest<AttachmentRow[]>('attachments', {
     token: user.token,
     query: `conversation_id=eq.${encodeURIComponent(conversationId)}&select=*`,
   });
-  const wanted = rows.filter((row) => ids.includes(row.id) && row.kind === 'upload');
-  if (wanted.length !== ids.length) throw new ApiError('One or more selected files are unavailable.', 404);
-  for (const file of wanted) {
-    if (Number(file.size_bytes) > policy.max_file_bytes) throw new ApiError('A selected file exceeds your plan limit.', 413);
-    if (file.mime_type === 'application/pdf' && !model.capabilities.includes('files'))
+  const wanted = rows.filter(
+    (row) => ids.includes(row.id) && row.kind === 'upload',
+  );
+  if (wanted.length !== ids.length)
+    throw new ApiError('One or more selected files are unavailable.', 404);
+  return wanted;
+}
+
+async function loadFiles(
+  selected: AttachmentRow[],
+  policy: DbPolicy,
+  model: DbModel,
+): Promise<ProviderFile[]> {
+  if (!selected.length) return [];
+  for (const file of selected) {
+    if (Number(file.size_bytes) > policy.max_file_bytes)
+      throw new ApiError('A selected file exceeds your plan limit.', 413);
+    if (
+      file.mime_type === 'application/pdf' &&
+      !model.capabilities.includes('files')
+    )
       throw new ApiError('The selected model does not support PDF files.', 409);
-    if (file.mime_type.startsWith('image/') && !model.capabilities.includes('vision'))
+    if (
+      file.mime_type.startsWith('image/') &&
+      !model.capabilities.includes('vision')
+    )
       throw new ApiError('The selected model does not support image input.', 409);
   }
   return Promise.all(
-    wanted.map(async (file) => {
+    selected.map(async (file) => {
       const response = await storageDownload(file.storage_path);
       return {
         name: file.name,
