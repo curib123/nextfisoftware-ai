@@ -17,11 +17,11 @@ function required(name: string) {
 }
 
 export function supabaseUrl() {
-  return required('NEXT_PUBLIC_SUPABASE_URL').replace(/\/$/, '');
+  return required('SUPABASE_URL').replace(/\/$/, '');
 }
 
 export function publishableKey() {
-  return required('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY');
+  return required('SUPABASE_PUBLISHABLE_KEY');
 }
 
 export function secretKey() {

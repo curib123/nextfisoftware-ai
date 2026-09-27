@@ -4,7 +4,7 @@ export interface AuthUser {
   username: string;
   role: 'USER' | 'ADMIN';
   accountType: 'REAL' | 'STARTER' | 'OFFICIAL';
-  plan: 'FREE' | 'PRO';
+  plan: 'FREE' | 'STARTER' | 'PRO' | 'MAX';
   onboardingCompleted: boolean;
 }
 export interface AuthResponse {
@@ -20,15 +20,9 @@ export class ApiError extends Error {
   }
 }
 export function getApiBaseUrl() {
-  if (typeof window !== 'undefined')
-    return (
-      process.env.NEXT_PUBLIC_API_BASE_URL ?? `${window.location.origin}/api/v1`
-    );
-  return (
-    process.env.INTERNAL_API_BASE_URL ??
-    process.env.NEXT_PUBLIC_API_BASE_URL ??
-    'http://localhost:4000/api/v1'
-  );
+  if (typeof window !== 'undefined') return `${window.location.origin}/api/v1`;
+  const site = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
+  return `${site.replace(/\/$/, '')}/api/v1`;
 }
 export async function apiRequest<T>(
   path: string,

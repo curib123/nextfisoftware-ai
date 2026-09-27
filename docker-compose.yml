@@ -5,129 +5,34 @@ services:
       dockerfile: infrastructure/docker/web.Dockerfile
       target: dependencies
     container_name: vrompt-web
+    command: npm run dev --workspace @vrompt/web -- --hostname 0.0.0.0 --port 3000
     environment:
       NODE_ENV: development
-      NEXT_PUBLIC_SITE_URL: http://localhost:3100
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:4100/api/v1
-      INTERNAL_API_BASE_URL: http://vrompt-api:4000/api/v1
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3100}
+      SUPABASE_URL: ${SUPABASE_URL:?SUPABASE_URL is required}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?SUPABASE_PUBLISHABLE_KEY is required}
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:?SUPABASE_SECRET_KEY is required}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      PAYMONGO_MODE: ${PAYMONGO_MODE:-test}
+      PAYMONGO_SECRET_KEY: ${PAYMONGO_SECRET_KEY:-}
+      PAYMONGO_WEBHOOK_SECRET: ${PAYMONGO_WEBHOOK_SECRET:-}
+      PAYMONGO_PAYMENT_METHODS: ${PAYMONGO_PAYMENT_METHODS:-card,gcash,qrph}
     ports:
       - '3100:3000'
-    depends_on:
-      vrompt-api:
-        condition: service_healthy
     volumes:
       - .:/workspace
       - vrompt-node-modules:/workspace/node_modules
       - vrompt-web-node-modules:/workspace/apps/web/node_modules
     healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "fetch('http://localhost:3000').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
-        ]
+      test: ['CMD','node','-e',"fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
 
-  vrompt-api:
-    build:
-      context: .
-      dockerfile: infrastructure/docker/api.Dockerfile
-      target: dependencies
-    container_name: vrompt-api
-    environment:
-      NODE_ENV: development
-      PORT: 4000
-      API_PREFIX: api/v1
-      SWAGGER_ENABLED: 'true'
-      DATABASE_URL: postgresql://postgres:postgres@vrompt-postgres:5432/vrompt
-      REDIS_URL: redis://vrompt-redis:6379
-      WEB_ORIGIN: http://localhost:3100
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
-      PAYMONGO_MODE: test
-      PAYMONGO_SECRET_KEY: ${PAYMONGO_SECRET_KEY:-}
-      PAYMONGO_WEBHOOK_SECRET: ${PAYMONGO_WEBHOOK_SECRET:-}
-      CHAT_STORAGE_DIR: /var/lib/vrompt/private-chat-files
-      JWT_ACCESS_SECRET: local-docker-access-secret-change-me
-      JWT_ACCESS_TTL_SECONDS: '900'
-      JWT_REFRESH_TTL_SECONDS: '604800'
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:4100/api/v1/auth/google/callback}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
-      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-http://localhost:4100/api/v1/auth/github/callback}
-      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
-      ADMIN_BOOTSTRAP_USERNAME: ${ADMIN_BOOTSTRAP_USERNAME:-}
-      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
-      AUTH_COOKIE_SECURE: 'false'
-      AUTH_COOKIE_SAME_SITE: lax
-    ports:
-      - '4100:4000'
-    depends_on:
-      vrompt-postgres:
-        condition: service_healthy
-      vrompt-redis:
-        condition: service_healthy
-    volumes:
-      - .:/workspace
-      - vrompt-node-modules:/workspace/node_modules
-      - vrompt-api-node-modules:/workspace/apps/api/node_modules
-      - ./storage/evidence:/app/storage/evidence
-      - vrompt-private-files:/var/lib/vrompt/private-chat-files
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "fetch('http://localhost:4000/api/v1/health').then((response)=>response.ok?response.json().then((body)=>process.exit(body.status==='ok'?0:1)):process.exit(1)).catch(()=>process.exit(1))",
-        ]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
-  vrompt-postgres:
-    image: postgres:16-alpine
-    container_name: vrompt-postgres
-    environment:
-      POSTGRES_DB: vrompt
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - '5432:5432'
-    volumes:
-      - vrompt-postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d vrompt']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  vrompt-redis:
-    image: redis:7-alpine
-    container_name: vrompt-redis
-    command: redis-server --save "" --appendonly no
-    ports:
-      - '6379:6379'
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
 volumes:
-  vrompt-private-files:
   vrompt-node-modules:
-  vrompt-api-node-modules:
   vrompt-web-node-modules:
-  vrompt-postgres-data:
-  vrompt-media-storage:

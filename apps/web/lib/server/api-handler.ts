@@ -94,6 +94,11 @@ export async function handleApi(request: NextRequest, path: string[]) {
       throw new ApiError('Authentication route not found.', 404);
     }
 
+    if (root === 'health' && request.method === 'GET') {
+      await rest('billing_plans', { admin: true, query: 'select=id&limit=1' });
+      return json({ status: 'ok' });
+    }
+
     if (root === 'settings' && second === 'public' && request.method === 'GET')
       return json(await publicSettings());
 

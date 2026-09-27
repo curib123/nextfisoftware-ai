@@ -1,1 +1,0 @@
-ALTER TABLE "WorkflowRun" ADD COLUMN "startedAt" TIMESTAMP(3);

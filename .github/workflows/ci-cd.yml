@@ -16,50 +16,21 @@ jobs:
   quality:
     name: Lint, test, type-check, and build
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: vrompt
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U postgres -d vrompt"
-          --health-interval 10s --health-timeout 5s --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s --health-timeout 5s --health-retries 5
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vrompt
-      REDIS_URL: redis://localhost:6379
-      RUN_INTEGRATION_TESTS: 'true'
-      JWT_ACCESS_SECRET: ci-only-access-secret-that-is-at-least-32-chars
-      GOOGLE_CLIENT_ID: ci-client
-      GOOGLE_CLIENT_SECRET: ci-secret
-      GOOGLE_CALLBACK_URL: http://localhost:4000/api/v1/auth/google/callback
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
-      - name: Generate Prisma client
-        run: npm run prisma:generate --workspace @vrompt/api
-      - run: npm run prisma:deploy --workspace @vrompt/api
-      - run: npm run lint --workspace @vrompt/api
-      - run: npm run lint --workspace @vrompt/web
-      - run: npm run typecheck --workspace @vrompt/api
-      - run: npm run typecheck --workspace @vrompt/web
-      - run: npm test --workspace @vrompt/api
-      - run: npm test --workspace @vrompt/web
-      - run: npm run test:e2e --workspace @vrompt/api
-      - run: npm run build --workspace @vrompt/web
-      - run: npm run build --workspace @vrompt/api
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+      - name: Verify no legacy backend runtime remains
+        run: |
+          test ! -d apps/api
+          ! grep -R "vrompt-api\|REDIS_URL\|DATABASE_URL" docker-compose*.yml .env*.example README.md
 
   production:
     name: Build and publish production images
@@ -86,23 +57,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: infrastructure/docker/api.Dockerfile
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}/api:${{ env.IMAGE_TAG }}
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: infrastructure/docker/api.Dockerfile
-          target: migration
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}/migrate:${{ env.IMAGE_TAG }}
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
           file: infrastructure/docker/web.Dockerfile
-          build-args: |
-            NEXT_PUBLIC_API_BASE_URL=/api/v1
-            NEXT_PUBLIC_SITE_URL=${{ env.SITE_URL }}
+          build-args: NEXT_PUBLIC_SITE_URL=${{ env.SITE_URL }}
           push: true
           tags: ${{ env.IMAGE_PREFIX }}/web:${{ env.IMAGE_TAG }}
       - uses: docker/build-push-action@v6
@@ -126,7 +82,7 @@ jobs:
     steps:
       - name: Report unconfigured deployment
         if: env.DEPLOY_HOST == '' || env.DEPLOY_SSH_KEY == '' || env.DEPLOY_USER == ''
-        run: echo "::notice::Oracle deployment skipped because ORACLE_HOST, ORACLE_SSH_KEY, and ORACLE_USER (or legacy VPS_* names) are not all configured."
+        run: echo "::notice::Oracle deployment skipped because deploy secrets are not all configured."
       - name: Configure SSH
         if: env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != '' && env.DEPLOY_USER != ''
         run: |

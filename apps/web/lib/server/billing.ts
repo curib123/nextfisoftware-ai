@@ -240,6 +240,18 @@ export async function createCheckout(request: Request, user: Authenticated) {
     throw new ApiError('This checkout request is already processing.', 409);
   }
 
+  const checkoutLimit = Math.max(
+    1,
+    Math.min(20, Number(process.env.PAYMONGO_CHECKOUT_RATE_LIMIT_PER_HOUR ?? 5) || 5),
+  );
+  const recentAttempts = await rest<{ id: string }[]>('payments', {
+    admin: true,
+    query:
+      `user_id=eq.${encodeURIComponent(user.profile.id)}&created_at=gte.${encodeURIComponent(new Date(Date.now() - 3_600_000).toISOString())}&select=id`,
+  });
+  if (recentAttempts.length >= checkoutLimit)
+    throw new ApiError('Too many checkout attempts. Please try again later.', 429);
+
   const discount = await resolveDiscount(
     user.profile.id,
     typeof input.discountCode === 'string' ? input.discountCode : '',

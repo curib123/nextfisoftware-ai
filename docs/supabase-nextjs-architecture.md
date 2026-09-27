@@ -19,7 +19,7 @@ Vrompt now targets a single full-stack Next.js application.
 2. Browser-readable tables receive explicit grants; billing, usage, audit and accounting tables remain server-only.
 3. User rows use ownership predicates based on `auth.uid()`.
 4. Administrator authorization is stored in `profiles.role`, never user-editable auth metadata.
-5. The Supabase secret key is server-only. Only the publishable key may use `NEXT_PUBLIC_`.
+5. The Supabase secret key is server-only. The publishable and secret Supabase keys are both kept server-side because browser code talks only to same-origin Next.js routes.
 6. File objects are private. Next.js checks the attachment owner before it reads or deletes an object.
 7. Quota reservation/finalization is atomic in Postgres. The RPCs are revoked from `PUBLIC`, `anon` and `authenticated` and granted only to `service_role`.
 8. OAuth uses PKCE + state and short-lived HttpOnly cookies. Refresh tokens remain HttpOnly.
@@ -46,8 +46,8 @@ Free-user spend must still be treated as acquisition cost. Track conversion and 
 
 ```env
 NEXT_PUBLIC_SITE_URL=https://your-domain.example
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 SUPABASE_SECRET_KEY=sb_secret_...
 
 OPENAI_API_KEY=

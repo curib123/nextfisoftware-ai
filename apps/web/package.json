@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "clean": "Remove-Item -Recurse -Force .next,coverage -ErrorAction SilentlyContinue"
+    "clean": "node -e \"const fs=require('fs'); for (const p of ['.next','.next-dev','.next-docker','coverage']) fs.rmSync(p,{recursive:true,force:true})\""
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

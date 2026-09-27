@@ -1,1 +1,0 @@
-ALTER TYPE "ModelProvider" ADD VALUE IF NOT EXISTS 'GROQ';

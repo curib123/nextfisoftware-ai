@@ -1,8 +1,0 @@
-ALTER TABLE "AIModel"
-  ADD COLUMN "capabilityStates" JSONB NOT NULL DEFAULT '{}',
-  ADD COLUMN "reasoningLevels" TEXT[] NOT NULL DEFAULT ARRAY['low']::TEXT[],
-  ADD COLUMN "defaultReasoningLevel" VARCHAR(12) NOT NULL DEFAULT 'low';
-
-ALTER TABLE "UsageRecord"
-  ADD COLUMN "creditUnits" INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN "toolUsage" JSONB NOT NULL DEFAULT '{}';

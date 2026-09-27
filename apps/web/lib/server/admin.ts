@@ -39,7 +39,20 @@ type Economic = {
   created_at: string;
 };
 
-const settingDefinitions = [
+type SettingDefinition = {
+  key: string;
+  group: string;
+  label: string;
+  description: string;
+  type: 'string' | 'number' | 'boolean';
+  defaultValue: string | number | boolean;
+  maxLength?: number;
+  minValue?: number;
+  maxValue?: number;
+  public: boolean;
+};
+
+const settingDefinitions: readonly SettingDefinition[] = [
   {
     key: 'branding.siteName',
     group: 'Branding',
@@ -109,7 +122,7 @@ const settingDefinitions = [
     maxLength: 500,
     public: true,
   },
-] as const;
+];
 
 export async function publicSettings() {
   const rows = await rest<{ key: string; value: unknown }[]>('site_settings', {

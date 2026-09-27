@@ -368,7 +368,7 @@ begin
   values (
     new.id,
     coalesce(new.email, ''),
-    left(lower(base_name), 24) || '-' || substring(new.id::text, 1, 6)
+    left(lower(base_name), 24) || '-' || substring(new.id::text, 1, 12)
   )
   on conflict (id) do update set email = excluded.email, updated_at = now();
 
@@ -565,17 +565,13 @@ alter table public.economic_entries enable row level security;
 revoke all on all tables in schema public from anon, authenticated;
 
 grant select on public.site_settings, public.ai_models, public.billing_plans to anon, authenticated;
-grant select, update on public.profiles to authenticated;
+grant select on public.profiles to authenticated;
 grant select, insert, update on public.user_preferences to authenticated;
 grant select, insert, update, delete on public.projects, public.conversations, public.messages, public.saved_prompts, public.attachments, public.workflows, public.workflow_runs to authenticated;
 
 drop policy if exists profiles_own_select on public.profiles;
 create policy profiles_own_select on public.profiles for select to authenticated
 using ((select auth.uid()) = id);
-drop policy if exists profiles_own_update on public.profiles;
-create policy profiles_own_update on public.profiles for update to authenticated
-using ((select auth.uid()) = id) with check ((select auth.uid()) = id);
-
 drop policy if exists preferences_own on public.user_preferences;
 create policy preferences_own on public.user_preferences for all to authenticated
 using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
@@ -625,6 +621,7 @@ insert into public.site_settings(key,value,is_public) values
 ('branding.siteName','"Vrompt"'::jsonb,true),
 ('branding.tagline','"One workspace. The right AI for every task."'::jsonb,true),
 ('content.announcement','""'::jsonb,true),
+('registration.enabled','true'::jsonb,true),
 ('workspace.writePrompt','"Help me write and improve this."'::jsonb,true),
 ('workspace.learnPrompt','"Explain this clearly and help me understand it."'::jsonb,true),
 ('workspace.codePrompt','"Help me build, debug, or improve this code."'::jsonb,true)
