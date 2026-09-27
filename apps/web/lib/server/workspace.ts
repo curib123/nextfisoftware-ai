@@ -952,6 +952,40 @@ async function runWorkflow(request: Request, user: Authenticated, workflowId: st
   }
 }
 
+async function updateSharedNvidiaHealth(
+  model: DbModel,
+  healthy: boolean,
+  message: string,
+) {
+  if (
+    model.provider !== 'NVIDIA' ||
+    model.source !== 'NVIDIA_DISCOVERED'
+  )
+    return;
+
+  const now = new Date().toISOString();
+  await rest('ai_models', {
+    admin: true,
+    method: 'PATCH',
+    query: `id=eq.${encodeURIComponent(model.id)}`,
+    body: {
+      enabled: healthy,
+      manual_available: healthy,
+      auto_available: healthy,
+      free_endpoint: healthy,
+      health_status: healthy ? 'HEALTHY' : 'DEGRADED',
+      health_checked_at: now,
+      health_message: message,
+      health_failure_count: healthy
+        ? 0
+        : (model.health_failure_count ?? 0) + 1,
+      ...(healthy
+        ? { last_success_at: now }
+        : { last_failure_at: now }),
+    },
+  }).catch(() => {});
+}
+
 async function generateOnce(
   user: Authenticated,
   plan: DbPlan,
@@ -986,6 +1020,11 @@ async function generateOnce(
       { feature: 'chat' },
     );
     if (!output.trim()) throw new ProviderFailure('EMPTY_RESPONSE');
+    await updateSharedNvidiaHealth(
+      model,
+      true,
+      'A live generation completed successfully.',
+    );
     await rest('messages', {
       token: user.token,
       method: 'PATCH',
@@ -997,6 +1036,12 @@ async function generateOnce(
     await touchConversation(user, conversationId);
     return output;
   } catch (error) {
+    if (error instanceof ProviderFailure)
+      await updateSharedNvidiaHealth(
+        model,
+        false,
+        `Live generation failed: ${error.category}`,
+      );
     await rest('messages', {
       token: user.token,
       method: 'PATCH',
@@ -1193,7 +1238,14 @@ export async function streamMessage(
               },
             },
           );
-          if (!output.trim() && !generated) throw new ProviderFailure('EMPTY_RESPONSE');
+          if (!output.trim() && !generated)
+            throw new ProviderFailure('EMPTY_RESPONSE');
+          if (mode !== 'BYOK')
+            await updateSharedNvidiaHealth(
+              model,
+              true,
+              'A live generation completed successfully.',
+            );
           await rest('messages', {
             token: user.token,
             method: 'PATCH',
@@ -1225,6 +1277,12 @@ export async function streamMessage(
             usage: await workspaceUsage(user),
           });
         } catch (error) {
+          if (mode !== 'BYOK' && error instanceof ProviderFailure)
+            await updateSharedNvidiaHealth(
+              model,
+              false,
+              `Live generation failed: ${error.category}`,
+            );
           await rest('messages', {
             token: user.token,
             method: 'PATCH',
