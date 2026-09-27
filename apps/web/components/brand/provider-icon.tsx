@@ -1,6 +1,13 @@
+const providerAssets = new Set([
+  'openai',
+  'google',
+  'anthropic',
+  'mistral',
+]);
+
 export function ProviderIcon({ provider }: { provider: string }) {
   const key = provider.toLowerCase();
-  if (Object.hasOwn(providerNames, key))
+  if (providerAssets.has(key))
     return (
       <span aria-hidden="true" className={`model-symbol model-symbol-${key}`}>
         <span
@@ -21,7 +28,9 @@ export function ProviderIcon({ provider }: { provider: string }) {
           ? '◎'
           : key === 'auto'
             ? '✦'
-            : key.slice(0, 1).toUpperCase();
+            : key === 'nvidia'
+              ? 'N'
+              : key.slice(0, 1).toUpperCase();
   return (
     <span aria-hidden="true" className={`model-symbol model-symbol-${key}`}>
       {label}
@@ -34,4 +43,5 @@ export const providerNames: Record<string, string> = {
   google: 'Gemini',
   anthropic: 'Claude',
   mistral: 'Mistral',
+  nvidia: 'NVIDIA NIM',
 };
