@@ -3897,3 +3897,44 @@ html {
   background: color-mix(in srgb, var(--brand-teal) 9%, var(--brand-paper));
   color: var(--brand-teal);
 }
+
+
+/* Model-source badges distinguish direct provider APIs from NVIDIA-hosted inference. */
+.model-source-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 22px;
+  padding: 3px 7px;
+  border: 1px solid var(--brand-soft);
+  border-radius: 999px;
+  background: var(--brand-paper);
+  color: var(--brand-mid);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.model-source-badge.is-direct {
+  border-color: color-mix(in srgb, var(--brand-azure) 28%, var(--brand-soft));
+  color: var(--brand-azure-deep);
+}
+.model-source-badge.is-nvidia {
+  border-color: color-mix(in srgb, var(--brand-teal) 34%, var(--brand-soft));
+  background: color-mix(in srgb, var(--brand-teal) 7%, var(--brand-paper));
+  color: var(--brand-teal-deep);
+}
+.model-card-heading .model-source-badge {
+  margin-left: 4px;
+}
+.model-detail-hero .model-source-badge {
+  margin-bottom: 7px;
+}
+.composer-model-option-copy .model-source-badge,
+.composer-model-current .model-source-badge {
+  min-height: 19px;
+  padding: 2px 6px;
+  font-size: 7px;
+}

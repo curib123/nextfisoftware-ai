@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "github": {
+    "autoJobCancelation": true
+  },
+  "ignoreCommand": "BASE=\"${VERCEL_GIT_PREVIOUS_SHA:-HEAD^}\"; git diff --quiet \"$BASE\" HEAD -- \":(top)apps/web\" \":(top)packages\" \":(top)package.json\" \":(top)package-lock.json\" \":(top)vercel.json\""
+}

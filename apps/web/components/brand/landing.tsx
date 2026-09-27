@@ -3,7 +3,11 @@ import Link from 'next/link';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { BrandLockup, BrandMark } from './brand-mark';
-import { ProviderIcon, providerNames } from './provider-icon';
+import {
+  ModelSourceBadge,
+  ProviderIcon,
+  providerNames,
+} from './provider-icon';
 import { ThemeToggle } from '@/components/theme/theme-toggle';
 import { useSiteSettings } from '@/components/providers/site-settings-provider';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -425,6 +429,10 @@ export function Landing() {
                     {providerNames[model.provider.toLowerCase()] ||
                       model.provider}
                   </span>
+                  <ModelSourceBadge
+                    provider={model.provider}
+                    source={model.source}
+                  />
                   {model.freeEndpoint && (
                     <span className="model-free-badge">Free endpoint</span>
                   )}
@@ -515,6 +523,10 @@ export function Landing() {
                 <div className="model-detail-hero">
                   <ProviderIcon provider={detailModel.provider} />
                   <div>
+                    <ModelSourceBadge
+                      provider={detailModel.provider}
+                      source={detailModel.source}
+                    />
                     <span className="eyebrow">
                       {detailModel.freeEndpoint
                         ? 'VERIFIED FREE ENDPOINT'

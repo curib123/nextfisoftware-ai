@@ -16,7 +16,11 @@ import {
 import { GeneratedImage } from './generated-image';
 import type { Project } from './projects';
 import { BrandMark } from '@/components/brand/brand-mark';
-import { ProviderIcon, providerNames } from '@/components/brand/provider-icon';
+import {
+  ModelSourceBadge,
+  ProviderIcon,
+  providerNames,
+} from '@/components/brand/provider-icon';
 import { useSiteSettings } from '@/components/providers/site-settings-provider';
 import { Icon } from '@/components/ui/icon';
 import { Modal } from '@/components/ui/modal';
@@ -823,6 +827,12 @@ export function Chat() {
                       <ProviderIcon provider={selectedModel?.provider ?? 'auto'} />
                       <span>
                         <strong>{selectedModel?.displayName ?? 'Choose model'}</strong>
+                        {selectedModel && (
+                          <ModelSourceBadge
+                            provider={selectedModel.provider}
+                            source={selectedModel.source}
+                          />
+                        )}
                         <small>
                           {useByok
                             ? 'Using your API key · 0 Vrompt AI credits'
@@ -917,6 +927,10 @@ export function Chat() {
                             <ProviderIcon provider={model.provider} />
                             <span className="composer-model-option-copy">
                               <strong>{model.displayName}</strong>
+                              <ModelSourceBadge
+                                provider={model.provider}
+                                source={model.source}
+                              />
                               <small>
                                 {locked
                                   ? 'Upgrade to unlock'
