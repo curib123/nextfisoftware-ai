@@ -184,7 +184,7 @@ async function refreshSession(request: NextRequest) {
   try {
     const tokens = await refreshSupabaseToken(refresh);
     const synthetic = new Request(request.url, {
-      headers: { authorization: \`Bearer \${tokens.access_token}\` },
+      headers: { authorization: `Bearer ${tokens.access_token}` },
     });
     const user = await requireUser(synthetic);
     const response = json({
@@ -214,7 +214,7 @@ async function logoutSession(request: NextRequest) {
       const tokens = await refreshSupabaseToken(refresh);
       await authJson('/logout?scope=global', {
         method: 'POST',
-        headers: { authorization: \`Bearer \${tokens.access_token}\` },
+        headers: { authorization: `Bearer ${tokens.access_token}` },
       });
     } catch {
       // Clearing the local refresh cookie is still required.
@@ -240,7 +240,7 @@ async function staffLogin(request: NextRequest) {
   const password = stringValue(input.password, 'Password', { min: 1, max: 128 });
   const tokens = await passwordLogin(email, password);
   const synthetic = new Request(request.url, {
-    headers: { authorization: \`Bearer \${tokens.access_token}\` },
+    headers: { authorization: `Bearer ${tokens.access_token}` },
   });
   const admin = await requireAdmin(synthetic);
   const response = json({
@@ -267,14 +267,14 @@ async function staffPassword(request: NextRequest) {
   if (verified.user.id !== admin.profile.id)
     throw new ApiError('Current password is incorrect.', 403);
 
-  await authAdminJson(\`/users/\${encodeURIComponent(admin.profile.id)}\`, {
+  await authAdminJson(`/users/${encodeURIComponent(admin.profile.id)}`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ password: newPassword }),
   });
   await authJson('/logout?scope=global', {
     method: 'POST',
-    headers: { authorization: \`Bearer \${verified.access_token}\` },
+    headers: { authorization: `Bearer ${verified.access_token}` },
   }).catch(() => {});
   const response = json({ changed: true });
   const next = new NextResponse(response.body, response);
@@ -312,7 +312,7 @@ export async function oauthCallback(request: NextRequest) {
     // Force profile initialization and status check before persisting refresh access.
     await requireUser(
       new Request(request.url, {
-        headers: { authorization: \`Bearer \${tokens.access_token}\` },
+        headers: { authorization: `Bearer ${tokens.access_token}` },
       }),
     );
     const response = NextResponse.redirect(
