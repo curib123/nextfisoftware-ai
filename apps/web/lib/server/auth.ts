@@ -35,7 +35,7 @@ export async function requireUser(request: Request): Promise<Authenticated> {
   const token = bearer(request);
   if (!token) throw new SupabaseHttpError('Authentication required.', 401);
   const auth = await authJson<SupabaseAuthUser>('/user', {
-    headers: { authorization: \`Bearer \${token}\` },
+    headers: { authorization: `Bearer ${token}` },
   }).catch((error) => {
     if (error instanceof SupabaseHttpError)
       throw new SupabaseHttpError('Your session has expired.', 401);
@@ -57,7 +57,7 @@ export async function requireAdmin(request: Request) {
 async function ensureProfile(auth: SupabaseAuthUser): Promise<Profile> {
   const existing = await rest<Profile[]>('profiles', {
     admin: true,
-    query: \`id=eq.\${encodeURIComponent(auth.id)}&select=*\`,
+    query: `id=eq.${encodeURIComponent(auth.id)}&select=*`,
   });
   if (existing[0]) return existing[0];
 
@@ -76,7 +76,7 @@ async function ensureProfile(auth: SupabaseAuthUser): Promise<Profile> {
     body: {
       id: auth.id,
       email,
-      username: \`\${base}-\${auth.id.slice(0, 6)}\`,
+      username: `${base}-${auth.id.slice(0, 6)}`,
     },
   });
   if (!rows[0]) throw new Error('Unable to initialize user profile.');
@@ -90,13 +90,13 @@ export async function activePlan(userId: string): Promise<DbPlan> {
   >('subscriptions', {
     admin: true,
     query:
-      \`user_id=eq.\${encodeURIComponent(userId)}&status=eq.ACTIVE&current_period_end=gt.\${encodeURIComponent(now)}&select=plan_id,current_period_end&order=current_period_end.desc&limit=1\`,
+      `user_id=eq.${encodeURIComponent(userId)}&status=eq.ACTIVE&current_period_end=gt.${encodeURIComponent(now)}&select=plan_id,current_period_end&order=current_period_end.desc&limit=1`,
   });
   const planId = subscriptions[0]?.plan_id;
   const plans = await rest<DbPlan[]>('billing_plans', {
     admin: true,
     query: planId
-      ? \`id=eq.\${encodeURIComponent(planId)}&select=*\`
+      ? `id=eq.${encodeURIComponent(planId)}&select=*`
       : 'code=eq.FREE&select=*',
   });
   if (!plans[0]) throw new Error('Billing plan configuration is missing.');
@@ -128,7 +128,7 @@ export function safeReturnPath(value: string | null | undefined) {
   try {
     const url = new URL(value, 'https://vrompt.invalid');
     return url.origin === 'https://vrompt.invalid'
-      ? \`\${url.pathname}\${url.search}\${url.hash}\`
+      ? `${url.pathname}${url.search}${url.hash}`
       : '/chat';
   } catch {
     return '/chat';
@@ -148,9 +148,9 @@ export function oauthAuthorizeUrl(
   state: string,
   request: Request,
 ) {
-  const url = new URL(\`\${supabaseUrl()}/auth/v1/authorize\`);
+  const url = new URL(`${supabaseUrl()}/auth/v1/authorize`);
   url.searchParams.set('provider', provider);
-  url.searchParams.set('redirect_to', \`\${siteOrigin(request)}/auth/callback\`);
+  url.searchParams.set('redirect_to', `${siteOrigin(request)}/auth/callback`);
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 's256');
   url.searchParams.set('state', state);
