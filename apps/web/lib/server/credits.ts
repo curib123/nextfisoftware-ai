@@ -142,47 +142,179 @@ export function providerConfigured(provider: DbModel['provider']) {
   );
 }
 
-export function chooseAutoModel(
+export type AutoRouteContext = {
+  prompt?: string;
+  requiredCapabilities?: string[];
+};
+
+function capabilityAvailable(model: DbModel, capability: string) {
+  return (
+    model.capabilities.includes(capability) &&
+    model.capability_states?.[capability] !== 'UNAVAILABLE'
+  );
+}
+
+export function modelOperational(model: DbModel) {
+  if (
+    !model.enabled ||
+    model.maintenance ||
+    !providerConfigured(model.provider)
+  )
+    return false;
+
+  if (model.provider === 'NVIDIA')
+    return model.health_status === 'HEALTHY';
+
+  return !['UNHEALTHY', 'NOT_CONFIGURED'].includes(
+    model.health_status ?? 'UNKNOWN',
+  );
+}
+
+function autoSignals(prompt = '') {
+  const value = prompt.toLowerCase();
+  const signals = new Set<string>();
+
+  if (
+    /\b(code|coding|debug|bug|typescript|javascript|python|sql|api|refactor|function|class|repository|repo)\b/.test(
+      value,
+    )
+  )
+    signals.add('coding');
+  if (
+    /\b(reason|reasoning|analy[sz]e|analysis|compare|evaluate|solve|math|logic|architecture|trade-?off)\b/.test(
+      value,
+    )
+  )
+    signals.add('reasoning');
+  if (
+    /\b(write|rewrite|draft|email|essay|story|caption|copy|grammar|tone)\b/.test(
+      value,
+    )
+  )
+    signals.add('writing');
+  if (/\b(image|photo|screenshot|diagram|visual|picture)\b/.test(value))
+    signals.add('vision');
+  if (/\b(pdf|document|file|attachment|spreadsheet|csv)\b/.test(value))
+    signals.add('files');
+  if (
+    value.length > 12000 ||
+    /\b(long context|large document|entire document|whole file|full document)\b/.test(
+      value,
+    )
+  )
+    signals.add('long_context');
+  if (!signals.size) signals.add('general');
+
+  return signals;
+}
+
+function autoFitScore(model: DbModel, context: AutoRouteContext) {
+  const signals = autoSignals(context.prompt);
+  const tagText = [
+    model.display_name,
+    model.description,
+    model.category ?? '',
+    ...(model.best_for ?? []),
+  ]
+    .join(' ')
+    .toLowerCase();
+
+  let score = model.quality_tier * 18 + model.routing_priority * 0.35;
+  if (model.health_status === 'HEALTHY') score += 3;
+
+  const capabilityWeights: Record<string, number> = {
+    coding: 34,
+    reasoning: 38,
+    vision: 30,
+    files: 30,
+    long_context: 34,
+  };
+  for (const [capability, weight] of Object.entries(capabilityWeights)) {
+    if (signals.has(capability) && capabilityAvailable(model, capability))
+      score += weight;
+  }
+
+  if (
+    signals.has('writing') &&
+    /writing|draft|instruction|chat|creative/.test(tagText)
+  )
+    score += 26;
+  if (
+    signals.has('general') &&
+    /general|everyday|chat|fast/.test(tagText)
+  )
+    score += 14;
+  if (signals.has('coding') && /coding|debug|code/.test(tagText)) score += 16;
+  if (signals.has('reasoning') && /reason|problem|analysis/.test(tagText))
+    score += 16;
+  if (signals.has('vision') && /vision|image|visual|multimodal/.test(tagText))
+    score += 12;
+  if (signals.has('files') && /file|document|context/.test(tagText)) score += 12;
+  if (
+    signals.has('long_context') &&
+    /long.?context|document|context/.test(tagText)
+  )
+    score += 14;
+
+  return score;
+}
+
+export function chooseAutoModels(
   models: DbModel[],
   policy: DbPolicy,
   feature: CreditFeature,
+  context: AutoRouteContext = {},
 ) {
   const routing = policy.routing ?? {};
+
   if (feature === 'image_generation') {
     const imageId = String(routing.imageModelId ?? '');
-    return models.find(
+    const image = models.find(
       (model) =>
         model.id === imageId &&
-        model.enabled &&
-        !model.maintenance &&
-        providerConfigured(model.provider),
+        modelOperational(model) &&
+        capabilityAvailable(model, 'image_generation'),
     );
+    return image ? [image] : [];
   }
 
   const ids = Array.isArray(routing.allowedModelIds)
     ? routing.allowedModelIds.map(String)
     : [];
   const budgetCredits = autoCredits(policy, 'chat');
-  if (!budgetCredits) return undefined;
+  if (!budgetCredits) return [];
   const budget = budgetCredits * PROVIDER_USD_PER_CREDIT;
+  const required = [...new Set(context.requiredCapabilities ?? [])];
 
   return models
     .filter(
       (model) =>
         ids.includes(model.id) &&
-        model.enabled &&
         model.auto_available &&
-        !model.maintenance &&
-        providerConfigured(model.provider) &&
-        (model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY') &&
+        modelOperational(model) &&
+        required.every((capability) =>
+          capabilityAvailable(model, capability),
+        ) &&
         requestCostBound(model, policy) <= budget + 1e-10,
     )
-    .sort(
-      (a, b) =>
-        Number(a.routing_cost_score) - Number(b.routing_cost_score) ||
+    .sort((a, b) => {
+      const fit = autoFitScore(b, context) - autoFitScore(a, context);
+      if (Math.abs(fit) > 1e-9) return fit;
+      return (
         b.quality_tier - a.quality_tier ||
-        b.routing_priority - a.routing_priority,
-    )[0];
+        b.routing_priority - a.routing_priority ||
+        Number(a.routing_cost_score) - Number(b.routing_cost_score)
+      );
+    });
+}
+
+export function chooseAutoModel(
+  models: DbModel[],
+  policy: DbPolicy,
+  feature: CreditFeature,
+  context: AutoRouteContext = {},
+) {
+  return chooseAutoModels(models, policy, feature, context)[0];
 }
 
 export function actualProviderCost(
