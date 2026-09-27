@@ -717,19 +717,33 @@ export function AdminRegistry({ plans = false }: { plans?: boolean }) {
     setSyncingNvidia(true);
     setNotice('');
     try {
-      const result = await apiRequest<{
-        discovered: number;
-        cataloged: number;
-        probed: number;
-        healthy: number;
-        remainingToProbe: number;
-      }>('/admin/workspace/nvidia-sync', {
-        accessToken: resource.accessToken,
-        method: 'POST',
-        body: JSON.stringify({ probeLimit: 12 }),
-      });
+      let remaining = 1;
+      let rounds = 0;
+      let totalProbed = 0;
+      let discovered = 0;
+      let healthy = 0;
+
+      while (remaining > 0 && rounds < 20) {
+        const result = await apiRequest<{
+          discovered: number;
+          cataloged: number;
+          probed: number;
+          healthy: number;
+          remainingToProbe: number;
+        }>('/admin/workspace/nvidia-sync', {
+          accessToken: resource.accessToken,
+          method: 'POST',
+          body: JSON.stringify({ probeLimit: 12 }),
+        });
+        discovered = result.discovered;
+        healthy = result.healthy;
+        totalProbed += result.probed;
+        remaining = result.remainingToProbe;
+        rounds += 1;
+      }
+
       setNotice(
-        `NVIDIA sync: ${result.discovered} discovered · ${result.probed} probed · ${result.healthy} healthy${result.remainingToProbe ? ` · ${result.remainingToProbe} waiting for the next sync` : ''}.`,
+        `NVIDIA sync: ${discovered} discovered · ${totalProbed} probes completed · ${healthy} healthy${remaining ? ` · ${remaining} still waiting` : ' · catalog scan complete'}.`,
       );
       resource.refresh();
     } catch (error) {
