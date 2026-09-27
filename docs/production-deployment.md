@@ -4,11 +4,11 @@ Vrompt production is a **single full-stack Next.js application** behind Nginx. S
 
 ## One-time setup
 
-1. Create a dedicated Supabase project for Vrompt.
-2. Apply `supabase/migrations/20260927000000_nextjs_fullstack.sql`.
+1. Use the dedicated Vrompt Supabase project `ytzjrztxmnhqtokycenw`.
+2. The production baseline is tracked as `supabase/migrations/20260927130707_nextjs_fullstack.sql`. Apply it only when provisioning a fresh environment.
 3. Configure Google/GitHub providers in Supabase Auth if desired.
 4. Add `https://YOUR_DOMAIN/auth/callback` to the Supabase redirect allow list.
-5. Copy `.env.production.example` to the server as `.env.production` and add the server-only Supabase, AI-provider, and PayMongo secrets.
+5. Copy `.env.production.example` to the server as `.env.production`. The Vrompt project URL and publishable key are prefilled; add the server-only `SUPABASE_SECRET_KEY`, AI-provider keys, and PayMongo secrets.
 6. Register `https://YOUR_DOMAIN/api/v1/webhooks/paymongo` in PayMongo.
 7. Bootstrap the Oracle/VPS host with `infrastructure/vps/bootstrap-ubuntu.sh`.
 
