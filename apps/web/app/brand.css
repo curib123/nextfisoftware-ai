@@ -3876,3 +3876,24 @@ html {
     flex-direction: column;
   }
 }
+
+
+.composer-byok-toggle {
+  min-height: 36px !important;
+  padding: 7px 10px !important;
+  border: 1px solid var(--brand-soft) !important;
+  border-radius: 999px !important;
+  background: var(--brand-paper);
+  color: var(--brand-mid);
+  font-size: 9px !important;
+  font-weight: 800;
+}
+.composer-byok-toggle:hover {
+  border-color: color-mix(in srgb, var(--brand-teal) 42%, var(--brand-soft)) !important;
+  color: var(--brand-ink);
+}
+.composer-byok-toggle.is-active {
+  border-color: color-mix(in srgb, var(--brand-teal) 42%, var(--brand-soft)) !important;
+  background: color-mix(in srgb, var(--brand-teal) 9%, var(--brand-paper));
+  color: var(--brand-teal);
+}
