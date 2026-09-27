@@ -56,6 +56,12 @@ type AuditRow = {
   metadata: Record<string, unknown> | null;
   created_at: string;
 };
+type AdminModelRow = DbModel & {
+  category?: string | null;
+  display_order?: number;
+  effective_from?: string | null;
+  effective_until?: string | null;
+};
 
 type SettingDefinition = {
   key: string;
@@ -176,7 +182,7 @@ export async function handleAdmin(
     if (item === 'overview' && request.method === 'GET') return billingOverview();
     if (item === 'payments' && request.method === 'GET') return adminPayments();
     if (item === 'webhook-failures' && request.method === 'GET')
-      return rest('webhook_events', {
+      return rest<WebhookFailure[]>('webhook_events', {
         admin: true,
         query: 'status=eq.FAILED&select=external_event_id,event_type,status,error_code,received_at&order=received_at.desc&limit=50',
       }).then((rows: WebhookFailure[]) =>
@@ -344,7 +350,7 @@ async function analytics() {
 
 async function workspaceConfiguration() {
   const [models, plans, policies] = await Promise.all([
-    rest<DbModel[]>('ai_models', { admin: true, query: 'select=*&order=display_order.asc' }),
+    rest<AdminModelRow[]>('ai_models', { admin: true, query: 'select=*&order=display_order.asc' }),
     allPlans(),
     rest<DbPolicy[]>('generation_policies', {
       admin: true,
@@ -359,7 +365,7 @@ async function workspaceConfiguration() {
   };
 }
 
-function mapModelConfig(row: DbModel) {
+function mapModelConfig(row: AdminModelRow) {
   return {
     id: row.id,
     provider: row.provider,
@@ -503,7 +509,7 @@ async function modelMutation(request: Request, actor: Authenticated, id?: string
     if (!Number.isFinite(value) || value < 0) throw new ApiError('Model pricing must be non-negative numbers.');
 
   const method = id ? 'PATCH' : 'POST';
-  const rows = await rest<DbModel[]>('ai_models', {
+  const rows = await rest<AdminModelRow[]>('ai_models', {
     admin: true,
     method,
     query: id ? `id=eq.${encodeURIComponent(routeId(id, 'Model ID'))}` : undefined,
@@ -794,7 +800,7 @@ async function auditRoute(request: Request) {
   const byId = new Map(profiles.map((row) => [row.id, row]));
   const filtered = rows.filter((row) => {
     if (!actorName) return true;
-    return byId.get(row.actor_id)?.username === actorName;
+    return row.actor_id ? byId.get(row.actor_id)?.username === actorName : false;
   });
   const size = 25;
   const pageRows = filtered.slice((page - 1) * size, page * size);
