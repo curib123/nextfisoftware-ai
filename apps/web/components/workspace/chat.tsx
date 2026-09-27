@@ -16,7 +16,7 @@ import {
 import { GeneratedImage } from './generated-image';
 import type { Project } from './projects';
 import { BrandMark } from '@/components/brand/brand-mark';
-import { providerNames } from '@/components/brand/provider-icon';
+import { ProviderIcon, providerNames } from '@/components/brand/provider-icon';
 import { useSiteSettings } from '@/components/providers/site-settings-provider';
 import { Icon } from '@/components/ui/icon';
 import { Modal } from '@/components/ui/modal';
@@ -71,6 +71,7 @@ export function Chat() {
   const bottom = useRef<HTMLDivElement>(null);
   const upload = useRef<HTMLInputElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const modelPicker = useRef<HTMLDetailsElement>(null);
   const allowance = usage?.allowances.find((a) => a.bucket === selected);
   const chatAvailable =
     catalog !== null &&
@@ -123,6 +124,36 @@ export function Chat() {
         models.find((model) => model.id === selected),
       ).includes('image_generation'));
   const activeProject = projects.find((project) => project.id === projectId);
+  const selectableModelIds = new Set(models.map((model) => model.id));
+  const visibleModels = (catalog ?? []).filter(
+    (model) => model.enabled !== false && !model.maintenance,
+  );
+  const visibleProviders = [...new Set(visibleModels.map((model) => model.provider))];
+  const selectedModel =
+    selected === 'AUTO' ? undefined : models.find((model) => model.id === selected);
+  const autoLabel =
+    usage?.plan?.toLowerCase() === 'free'
+      ? 'Auto · Mistral'
+      : 'Auto · Recommended';
+
+  function closeModelPicker() {
+    modelPicker.current?.removeAttribute('open');
+  }
+
+  function chooseModel(modelId: string) {
+    modelChosenByUser.current = true;
+    setSelectionNotice('');
+    setSelected(modelId);
+    setFeature('chat');
+    closeModelPicker();
+  }
+
+  function openUpgrade(model: Model) {
+    closeModelPicker();
+    router.push(
+      `/billing?unlockModel=${encodeURIComponent(model.displayName)}&modelId=${encodeURIComponent(model.id)}`,
+    );
+  }
   useEffect(() => {
     const controller = new AbortController();
     void apiRequest<Model[]>('/catalog/models', { signal: controller.signal })
@@ -470,7 +501,14 @@ export function Chat() {
         <div className="service-notice">
           <div>
             <p>{selectionNotice}</p>
-            <Link href="/billing" className="text-link">
+            <Link
+              href={
+                requestedModel && requestedModel !== 'AUTO'
+                  ? `/billing?unlockModel=${encodeURIComponent(catalog?.find((model) => model.id === requestedModel)?.displayName ?? 'this model')}&modelId=${encodeURIComponent(requestedModel)}`
+                  : '/billing'
+              }
+              className="text-link"
+            >
               Compare plans <Icon name="arrow" />
             </Link>
           </div>
@@ -742,39 +780,145 @@ export function Chat() {
             }}
           />
           <div className="composer-controls">
-            <select
-              className="composer-model"
-              aria-label="Choose AI model"
-              value={selected}
-              disabled={busy}
-              onChange={(e) => {
-                modelChosenByUser.current = true;
-                setSelectionNotice('');
-                setSelected(e.target.value);
-                setFeature('chat');
-              }}
-            >
-              <option value="AUTO">Auto — Recommended</option>
-              {[...new Set(models.map((model) => model.provider))].map(
-                (provider) => (
-                  <optgroup
-                    key={provider}
-                    label={providerNames[provider.toLowerCase()] ?? provider}
-                  >
-                    {models
+            <details className="composer-model-picker" ref={modelPicker}>
+              <summary
+                className="composer-model"
+                aria-label="Choose AI model"
+                aria-disabled={busy}
+                onClick={(event) => {
+                  if (busy) event.preventDefault();
+                }}
+              >
+                <span className="composer-model-current">
+                  {selected === 'AUTO' ? (
+                    <>
+                      <ProviderIcon provider="auto" />
+                      <span>
+                        <strong>{autoLabel}</strong>
+                        <small>
+                          {usage?.plan?.toLowerCase() === 'free'
+                            ? 'Free plan routes through Mistral'
+                            : 'Vrompt chooses an eligible model'}
+                        </small>
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <ProviderIcon provider={selectedModel?.provider ?? 'auto'} />
+                      <span>
+                        <strong>{selectedModel?.displayName ?? 'Choose model'}</strong>
+                        <small>
+                          {selectedModel?.creditCosts?.chat != null
+                            ? `${selectedModel.creditCosts.chat} ${selectedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
+                            : 'Included in your plan'}
+                        </small>
+                      </span>
+                    </>
+                  )}
+                </span>
+                <Icon name="chevronDown" className="composer-model-chevron" />
+              </summary>
+
+              <div className="composer-model-menu" role="listbox" aria-label="AI models">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selected === 'AUTO'}
+                  className={`composer-model-option ${selected === 'AUTO' ? 'is-selected' : ''}`}
+                  onClick={() => chooseModel('AUTO')}
+                >
+                  <ProviderIcon provider="auto" />
+                  <span className="composer-model-option-copy">
+                    <strong>{autoLabel}</strong>
+                    <small>
+                      {usage?.plan?.toLowerCase() === 'free'
+                        ? 'Included · Mistral-powered on Free'
+                        : 'Recommended · cost-aware routing'}
+                    </small>
+                  </span>
+                  {selected === 'AUTO' && <Icon name="check" />}
+                </button>
+
+                {visibleProviders.map((provider) => (
+                  <div className="composer-model-provider" key={provider}>
+                    <p>{providerNames[provider.toLowerCase()] ?? provider}</p>
+                    {visibleModels
                       .filter((model) => model.provider === provider)
-                      .map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {model.displayName}
-                          {model.creditCosts?.chat != null
-                            ? ` · ${model.creditCosts.chat} ${model.creditCosts.chat === 1 ? 'credit' : 'credits'}`
-                            : ''}
-                        </option>
-                      ))}
-                  </optgroup>
-                ),
-              )}
-            </select>
+                      .map((model) => {
+                        const selectable = selectableModelIds.has(model.id);
+                        const unavailable = model.available === false;
+                        const includedViaFreeAuto =
+                          usage?.plan?.toLowerCase() === 'free' &&
+                          model.provider === 'MISTRAL' &&
+                          !unavailable;
+                        const locked =
+                          !selectable && !includedViaFreeAuto && !unavailable;
+                        const allowedModel = models.find((item) => item.id === model.id);
+                        return (
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selected === model.id}
+                            className={[
+                              'composer-model-option',
+                              selected === model.id ? 'is-selected' : '',
+                              locked ? 'is-locked' : '',
+                              unavailable ? 'is-unavailable' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                            key={model.id}
+                            disabled={busy || unavailable}
+                            onClick={() => {
+                              if (locked) openUpgrade(model);
+                              else if (includedViaFreeAuto) chooseModel('AUTO');
+                              else chooseModel(model.id);
+                            }}
+                            aria-label={
+                              locked
+                                ? `${model.displayName}. Locked. View upgrade options.`
+                                : unavailable
+                                  ? `${model.displayName}. Temporarily unavailable.`
+                                  : includedViaFreeAuto
+                                    ? `${model.displayName}. Included through Auto on the Free plan.`
+                                    : model.displayName
+                            }
+                          >
+                            <ProviderIcon provider={model.provider} />
+                            <span className="composer-model-option-copy">
+                              <strong>{model.displayName}</strong>
+                              <small>
+                                {locked
+                                  ? 'Upgrade to unlock'
+                                  : unavailable
+                                    ? 'Temporarily unavailable'
+                                    : includedViaFreeAuto
+                                      ? 'Included through Auto on Free'
+                                      : allowedModel?.creditCosts?.chat != null
+                                      ? `${allowedModel.creditCosts.chat} ${allowedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
+                                      : 'Included in your plan'}
+                              </small>
+                            </span>
+                            {locked ? (
+                              <span className="model-lock-badge">
+                                <Icon name="lock" /> Upgrade
+                              </span>
+                            ) : includedViaFreeAuto ? (
+                              <span className="model-included-badge">
+                                <Icon name="check" /> Included
+                              </span>
+                            ) : selected === model.id ? (
+                              <Icon name="check" />
+                            ) : unavailable ? (
+                              <span className="model-unavailable-badge">Unavailable</span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                  </div>
+                ))}
+              </div>
+            </details>
             <div className="composer-actions">
               <input
                 type="file"

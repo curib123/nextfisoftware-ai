@@ -2609,6 +2609,220 @@ html {
   gap: 8px;
   align-items: center;
 }
+
+/* Model access is visible at a glance: selectable, plan-locked, or temporarily unavailable. */
+.composer-model-picker {
+  position: relative;
+  width: min(100%, 320px);
+  min-width: 0;
+}
+.composer-model-picker[open] {
+  z-index: 30;
+}
+.composer-model-picker > summary {
+  list-style: none;
+}
+.composer-model-picker > summary::-webkit-details-marker {
+  display: none;
+}
+.composer-model-picker .composer-model {
+  width: 100%;
+  padding: 7px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.composer-model-picker .composer-model[aria-disabled='true'] {
+  cursor: wait;
+  opacity: 0.62;
+}
+.composer-model-current {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+}
+.composer-model-current > span:last-child {
+  min-width: 0;
+}
+.composer-model-current strong,
+.composer-model-current small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer-model-current strong {
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.composer-model-current small {
+  margin-top: 1px;
+  color: var(--brand-mid);
+  font-size: 9px;
+}
+.composer-model-current .model-symbol,
+.composer-model-option .model-symbol {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+}
+.composer-model-chevron {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  color: var(--brand-mid);
+  transition: transform 160ms ease;
+}
+.composer-model-picker[open] .composer-model-chevron {
+  transform: rotate(180deg);
+}
+.composer-model-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: min(390px, calc(100vw - 32px));
+  max-height: min(480px, 62vh);
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--brand-soft);
+  border-radius: 16px;
+  background: var(--brand-paper);
+  box-shadow: 0 22px 60px var(--brand-shadow);
+}
+.composer-model-provider + .composer-model-provider {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--brand-soft);
+}
+.composer-model-provider > p {
+  margin: 5px 8px 4px;
+  color: var(--brand-mid);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.composer-model-option {
+  width: 100%;
+  min-height: 54px !important;
+  padding: 8px 9px !important;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid transparent !important;
+  border-radius: 11px !important;
+  background: transparent;
+  color: var(--brand-ink);
+  text-align: left;
+  white-space: normal !important;
+}
+.composer-model-option:hover:not(:disabled) {
+  border-color: var(--brand-soft) !important;
+  background: var(--brand-surface);
+}
+.composer-model-option.is-selected {
+  border-color: color-mix(in srgb, var(--brand-teal) 45%, var(--brand-soft)) !important;
+  background: color-mix(in srgb, var(--brand-teal) 8%, var(--brand-paper));
+}
+.composer-model-option.is-locked {
+  background: color-mix(in srgb, var(--brand-mid) 4%, var(--brand-paper));
+}
+.composer-model-option.is-locked:hover {
+  border-color: color-mix(in srgb, var(--brand-azure) 50%, var(--brand-soft)) !important;
+  background: color-mix(in srgb, var(--brand-azure) 6%, var(--brand-paper));
+}
+.composer-model-option.is-unavailable {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+.composer-model-option-copy {
+  min-width: 0;
+  flex: 1;
+}
+.composer-model-option-copy strong,
+.composer-model-option-copy small {
+  display: block;
+}
+.composer-model-option-copy strong {
+  font-size: 12px;
+  font-weight: 720;
+}
+.composer-model-option-copy small {
+  margin-top: 2px;
+  color: var(--brand-mid);
+  font-size: 9px;
+}
+.model-lock-badge,
+.model-included-badge,
+.model-unavailable-badge {
+  min-height: 24px;
+  padding: 4px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.model-lock-badge {
+  border: 1px solid color-mix(in srgb, var(--brand-azure) 30%, var(--brand-soft));
+  background: color-mix(in srgb, var(--brand-azure) 8%, var(--brand-paper));
+  color: var(--brand-azure);
+}
+.model-included-badge {
+  border: 1px solid color-mix(in srgb, var(--brand-teal) 32%, var(--brand-soft));
+  background: color-mix(in srgb, var(--brand-teal) 8%, var(--brand-paper));
+  color: var(--brand-teal);
+}
+.model-unavailable-badge {
+  border: 1px solid var(--brand-soft);
+  color: var(--brand-mid);
+}
+.model-lock-badge svg,
+.model-included-badge svg {
+  width: 11px;
+  height: 11px;
+}
+
+/* Billing receives context when a locked model sends the user to upgrade. */
+.upgrade-intent-panel {
+  padding: 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-azure) 34%, var(--brand-soft));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--brand-azure) 6%, var(--brand-paper));
+  box-shadow: 0 12px 32px var(--brand-shadow);
+}
+.upgrade-intent-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  border-radius: 12px;
+  background: var(--brand-paper);
+  color: var(--brand-azure);
+  box-shadow: 0 5px 18px var(--brand-shadow);
+}
+.upgrade-intent-panel h2 {
+  margin: 3px 0 4px;
+  font-size: clamp(18px, 2vw, 24px);
+}
+.upgrade-intent-panel p {
+  margin: 0;
+  color: var(--brand-mid);
+  line-height: 1.55;
+}
 .composer-controls button {
   min-height: 44px;
   padding: 10px 12px;
@@ -2779,9 +2993,18 @@ html {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
-  .composer-controls .composer-model {
+  .composer-controls .composer-model,
+  .composer-model-picker {
     width: 100%;
     font-size: 13px;
+  }
+  .composer-model-menu {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    width: auto;
+    max-height: min(58vh, 460px);
   }
   .composer-controls .primary-button,
   .composer-controls .secondary-button {
