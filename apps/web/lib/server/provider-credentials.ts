@@ -62,9 +62,18 @@ function credentialEncryptionKey() {
   return key;
 }
 
-function encryptApiKey(value: string) {
+function credentialAad(userId: string, provider: ProviderName) {
+  return Buffer.from(`vrompt-provider-key:${userId}:${provider}`, 'utf8');
+}
+
+function encryptApiKey(
+  value: string,
+  userId: string,
+  provider: ProviderName,
+) {
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', credentialEncryptionKey(), iv);
+  cipher.setAAD(credentialAad(userId, provider));
   const encrypted = Buffer.concat([
     cipher.update(value, 'utf8'),
     cipher.final(),
@@ -82,6 +91,7 @@ function decryptApiKey(row: ProviderKeyRow) {
     credentialEncryptionKey(),
     Buffer.from(row.key_iv, 'base64'),
   );
+  decipher.setAAD(credentialAad(row.user_id, row.provider));
   decipher.setAuthTag(Buffer.from(row.key_tag, 'base64'));
   return Buffer.concat([
     decipher.update(Buffer.from(row.encrypted_key, 'base64')),
@@ -207,7 +217,7 @@ export async function providerConnectionsRoute(
   if (probe.status === 'UNHEALTHY')
     throw new ApiError(probe.message, 400);
 
-  const sealed = encryptApiKey(apiKey);
+  const sealed = encryptApiKey(apiKey, user.profile.id, provider);
   const checkedAt = new Date().toISOString();
   const rows = await rest<ProviderKeyRow[]>('user_provider_keys', {
     admin: true,
