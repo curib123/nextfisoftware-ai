@@ -10,18 +10,26 @@ export class SupabaseHttpError extends Error {
   }
 }
 
-function required(name: string) {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+function required(name: string, fallbackName?: string) {
+  const value =
+    process.env[name]?.trim() ||
+    (fallbackName ? process.env[fallbackName]?.trim() : undefined);
+  if (!value) {
+    const accepted = fallbackName ? `${name} or ${fallbackName}` : name;
+    throw new Error(`Missing required environment variable: ${accepted}`);
+  }
   return value;
 }
 
 export function supabaseUrl() {
-  return required('SUPABASE_URL').replace(/\/$/, '');
+  return required('SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL').replace(/\/$/, '');
 }
 
 export function publishableKey() {
-  return required('SUPABASE_PUBLISHABLE_KEY');
+  return required(
+    'SUPABASE_PUBLISHABLE_KEY',
+    'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
+  );
 }
 
 export function secretKey() {
