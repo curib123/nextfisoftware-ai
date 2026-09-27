@@ -44,6 +44,21 @@ const modelFields: Field[] = [
   { key: 'providerModelId', label: 'Provider model ID' },
   { key: 'category', label: 'Category' },
   { key: 'description', label: 'Description', type: 'textarea' },
+  {
+    key: 'bestFor',
+    label: 'Best for (comma-separated)',
+    type: 'textarea',
+  },
+  {
+    key: 'quickFacts',
+    label: 'Quick information (JSON)',
+    type: 'textarea',
+  },
+  {
+    key: 'details',
+    label: 'Full details (JSON)',
+    type: 'textarea',
+  },
   { key: 'enabled', label: 'Enabled', type: 'checkbox' },
   { key: 'maintenance', label: 'Maintenance mode', type: 'checkbox' },
   {
