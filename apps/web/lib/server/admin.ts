@@ -508,6 +508,24 @@ async function modelMutation(request: Request, actor: Authenticated, id?: string
     max_context: integerValue(input.maxContext, 'Context limit', 1, 10_000_000),
     max_output: integerValue(input.maxOutput, 'Output limit', 1, 1_000_000),
     currency: 'USD',
+    best_for: Array.isArray(input.bestFor)
+      ? input.bestFor
+          .map((value) => String(value).trim())
+          .filter(Boolean)
+          .slice(0, 12)
+      : [],
+    quick_facts:
+      input.quickFacts &&
+      typeof input.quickFacts === 'object' &&
+      !Array.isArray(input.quickFacts)
+        ? input.quickFacts
+        : {},
+    details:
+      input.details &&
+      typeof input.details === 'object' &&
+      !Array.isArray(input.details)
+        ? input.details
+        : {},
   };
   for (const value of [
     data.routing_cost_score,
