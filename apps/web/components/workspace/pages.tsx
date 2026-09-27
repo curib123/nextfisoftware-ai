@@ -127,7 +127,9 @@ function BillingContent() {
   const { alert } = useFeedback();
   const { accessToken, user } = useAuth();
   const router = useRouter();
-  const requestedPlan = useSearchParams().get('plan');
+  const searchParams = useSearchParams();
+  const requestedPlan = searchParams.get('plan');
+  const unlockModel = searchParams.get('unlockModel');
   const plans = usePlans();
   const billingResource = useSubscription();
   const billing = billingResource.data;
@@ -199,6 +201,21 @@ function BillingContent() {
         description="Review your current plan and compare available upgrades."
       />
       <ResourceState {...billingResource} onRetry={billingResource.refresh} />
+      {unlockModel && (
+        <section className="upgrade-intent-panel" aria-label="Upgrade model access">
+          <span className="upgrade-intent-icon">
+            <Icon name="lock" />
+          </span>
+          <div>
+            <span className="eyebrow">MODEL LOCKED</span>
+            <h2>Unlock {unlockModel}</h2>
+            <p>
+              This model is not included in your current plan. Choose an eligible
+              paid plan below to add model selection to your workspace.
+            </p>
+          </div>
+        </section>
+      )}
       {billing && (
         <section className="panel current-plan-panel">
           <div>
