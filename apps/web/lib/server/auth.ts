@@ -116,10 +116,51 @@ export async function publicUser(user: Authenticated) {
   };
 }
 
+function requestOrigin(request: NextRequest | Request) {
+  const url = new URL(request.url);
+  const forwardedHost = request.headers
+    .get('x-forwarded-host')
+    ?.split(',')[0]
+    ?.trim();
+  const host = forwardedHost || request.headers.get('host')?.trim();
+  const forwardedProto = request.headers
+    .get('x-forwarded-proto')
+    ?.split(',')[0]
+    ?.trim();
+
+  if (host) {
+    const protocol =
+      forwardedProto === 'http' || forwardedProto === 'https'
+        ? forwardedProto
+        : url.protocol.replace(':', '');
+    return `${protocol}://${host}`;
+  }
+
+  return url.origin;
+}
+
 export function siteOrigin(request?: NextRequest | Request) {
+  // OAuth must return to the origin that actually initiated the request.
+  // This prevents a stale Vercel env value such as localhost from sending
+  // production users back to a developer machine.
+  if (request) return requestOrigin(request);
+
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configured) return configured.replace(/\/$/, '');
-  if (request) return new URL(request.url).origin;
+  if (configured) {
+    const origin = new URL(configured).origin;
+    if (
+      process.env.NODE_ENV === 'production' &&
+      ['localhost', '127.0.0.1', '::1'].includes(new URL(origin).hostname)
+    )
+      throw new Error(
+        'NEXT_PUBLIC_SITE_URL cannot point to localhost in production.',
+      );
+    return origin;
+  }
+
+  if (process.env.NODE_ENV === 'production')
+    throw new Error('NEXT_PUBLIC_SITE_URL is required in production.');
+
   return 'http://localhost:3000';
 }
 
