@@ -18,6 +18,7 @@ export type ProviderOptions = {
   feature?: 'chat' | 'image_generation';
   reasoningLevel?: string;
   image?: (mimeType: string, base64: string) => Promise<void>;
+  apiKey?: string;
 };
 
 type ProviderUsage = Record<string, unknown> & {
@@ -74,8 +75,44 @@ type MistralPart =
   | { type: 'text'; text: string }
   | { type: 'image_url'; image_url: { url: string } };
 type MistralInput = { role: string; content: string | MistralPart[] };
+type NvidiaPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+type NvidiaInput = { role: string; content: string | NvidiaPart[] };
+
+export type ProviderHealthStatus =
+  | 'HEALTHY'
+  | 'DEGRADED'
+  | 'UNHEALTHY'
+  | 'NOT_CONFIGURED';
+
+export type ProviderHealthResult = {
+  status: ProviderHealthStatus;
+  message: string;
+};
 
 const MAX_PROVIDER_ATTEMPTS = 3;
+
+function providerKey(
+  provider: DbModel['provider'],
+  override?: string,
+) {
+  const explicit = override?.trim();
+  if (explicit) return explicit;
+  return (
+    {
+      OPENAI: process.env.OPENAI_API_KEY,
+      GOOGLE: process.env.GOOGLE_AI_API_KEY,
+      ANTHROPIC: process.env.ANTHROPIC_API_KEY,
+      MISTRAL: process.env.MISTRAL_API_KEY,
+      NVIDIA: process.env.NVIDIA_API_KEY,
+    } as const
+  )[provider]?.trim();
+}
+
+function nvidiaBaseUrl() {
+  return (process.env.NVIDIA_API_BASE_URL?.trim() || 'https://integrate.api.nvidia.com').replace(/\/$/, '');
+}
 
 function retryDelay(response: Response, attempt: number) {
   const retryAfter = Number(response.headers.get('retry-after'));
@@ -196,7 +233,7 @@ async function openai(
   usage: NormalizedUsage,
   options: ProviderOptions,
 ) {
-  const key = process.env.OPENAI_API_KEY?.trim();
+  const key = providerKey('OPENAI', options.apiKey);
   if (!key) throw new ProviderFailure('NOT_CONFIGURED', false);
   const input: OpenAIInput[] = messages.map((m) => ({ role: m.role, content: m.content }));
   if (!input.length) input.push({ role: 'user', content: '' });
@@ -292,7 +329,7 @@ async function google(
   usage: NormalizedUsage,
   options: ProviderOptions,
 ) {
-  const key = process.env.GOOGLE_AI_API_KEY?.trim();
+  const key = providerKey('GOOGLE', options.apiKey);
   if (!key) throw new ProviderFailure('NOT_CONFIGURED', false);
 
   const system = messages
@@ -371,7 +408,7 @@ async function anthropic(
   usage: NormalizedUsage,
   options: ProviderOptions,
 ) {
-  const key = process.env.ANTHROPIC_API_KEY?.trim();
+  const key = providerKey('ANTHROPIC', options.apiKey);
   if (!key) throw new ProviderFailure('NOT_CONFIGURED', false);
   if (options.feature === 'image_generation')
     throw new ProviderFailure('UNSUPPORTED_FEATURE', false);
@@ -457,7 +494,7 @@ async function mistral(
   usage: NormalizedUsage,
   options: ProviderOptions,
 ) {
-  const key = process.env.MISTRAL_API_KEY?.trim();
+  const key = providerKey('MISTRAL', options.apiKey);
   if (!key) throw new ProviderFailure('NOT_CONFIGURED', false);
   if (options.feature === 'image_generation')
     throw new ProviderFailure('UNSUPPORTED_FEATURE', false);
@@ -514,6 +551,237 @@ async function mistral(
   if (!complete) throw new ProviderFailure('INTERRUPTED_STREAM');
 }
 
+
+async function nvidia(
+  model: DbModel,
+  messages: ProviderMessage[],
+  files: ProviderFile[],
+  maxOutput: number,
+  signal: AbortSignal,
+  delta: (text: string) => void,
+  usage: NormalizedUsage,
+  options: ProviderOptions,
+) {
+  const key = providerKey('NVIDIA', options.apiKey);
+  if (!key) throw new ProviderFailure('NOT_CONFIGURED', false);
+  if (options.feature === 'image_generation')
+    throw new ProviderFailure('UNSUPPORTED_FEATURE', false);
+
+  const input: NvidiaInput[] = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }));
+  if (!input.length) input.push({ role: 'user', content: '' });
+
+  if (files.length) {
+    const last = input[input.length - 1]!;
+    const content: NvidiaPart[] = [
+      { type: 'text', text: typeof last.content === 'string' ? last.content : '' },
+    ];
+    for (const file of files) {
+      if (file.mimeType === 'text/plain')
+        content.push({
+          type: 'text',
+          text: `File ${file.name}:\n${new TextDecoder().decode(file.data)}`,
+        });
+      else if (file.mimeType.startsWith('image/'))
+        content.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:${file.mimeType};base64,${b64(file.data)}`,
+          },
+        });
+      else throw new ProviderFailure('UNSUPPORTED_FILE', false);
+    }
+    last.content = content;
+  }
+
+  const body = await request(
+    `${nvidiaBaseUrl()}/v1/chat/completions`,
+    { authorization: `Bearer ${key}` },
+    {
+      model: model.provider_model_id,
+      messages: input,
+      max_tokens: maxOutput,
+      stream: true,
+    },
+    signal,
+  );
+
+  let complete = false;
+  for await (const event of readEvents(body)) {
+    if (event.error) throw new ProviderFailure('PROVIDER_ERROR');
+    const choice = event.choices?.[0];
+    const content = choice?.delta?.content;
+    if (typeof content === 'string') delta(content);
+    if (choice?.finish_reason) complete = true;
+    if (event.usage) {
+      const u = event.usage;
+      usage.input = Number(u.prompt_tokens ?? 0);
+      usage.output = Number(u.completion_tokens ?? 0);
+      usage.raw = { ...usage.raw, ...u };
+      usage.reported = true;
+    }
+  }
+  if (!complete) throw new ProviderFailure('INTERRUPTED_STREAM');
+}
+
+async function healthFetch(
+  url: string,
+  init: RequestInit,
+  timeoutMs = 8000,
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      cache: 'no-store',
+      redirect: 'error',
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function healthFromResponse(response: Response): ProviderHealthResult {
+  if (response.ok)
+    return { status: 'HEALTHY', message: 'Connection verified.' };
+  if (response.status === 429)
+    return {
+      status: 'DEGRADED',
+      message: 'The provider accepted the credential but is rate limited.',
+    };
+  if (response.status === 401 || response.status === 403)
+    return {
+      status: 'UNHEALTHY',
+      message: 'The provider rejected this API key.',
+    };
+  if (response.status >= 500)
+    return {
+      status: 'DEGRADED',
+      message: `Provider returned HTTP ${response.status}.`,
+    };
+  return {
+    status: 'UNHEALTHY',
+    message: `Provider returned HTTP ${response.status}.`,
+  };
+}
+
+export async function probeProviderCredential(
+  provider: DbModel['provider'],
+  apiKey: string,
+): Promise<ProviderHealthResult> {
+  const key = apiKey.trim();
+  if (!key)
+    return { status: 'NOT_CONFIGURED', message: 'No API key configured.' };
+
+  try {
+    let response: Response;
+    switch (provider) {
+      case 'OPENAI':
+        response = await healthFetch('https://api.openai.com/v1/models', {
+          headers: { authorization: `Bearer ${key}` },
+        });
+        break;
+      case 'GOOGLE':
+        response = await healthFetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`,
+          {},
+        );
+        break;
+      case 'ANTHROPIC':
+        response = await healthFetch('https://api.anthropic.com/v1/models', {
+          headers: {
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+          },
+        });
+        break;
+      case 'MISTRAL':
+        response = await healthFetch('https://api.mistral.ai/v1/models', {
+          headers: { authorization: `Bearer ${key}` },
+        });
+        break;
+      case 'NVIDIA':
+        response = await healthFetch(`${nvidiaBaseUrl()}/v1/models`, {
+          headers: { authorization: `Bearer ${key}` },
+        });
+        break;
+    }
+    return healthFromResponse(response);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError')
+      return { status: 'DEGRADED', message: 'Provider health check timed out.' };
+    return { status: 'DEGRADED', message: 'Provider health check failed.' };
+  }
+}
+
+export async function discoverNvidiaModelIds(
+  apiKey = process.env.NVIDIA_API_KEY?.trim(),
+) {
+  if (!apiKey) throw new ProviderFailure('NOT_CONFIGURED', false);
+  const response = await healthFetch(`${nvidiaBaseUrl()}/v1/models`, {
+    headers: { authorization: `Bearer ${apiKey}` },
+  }, 12000);
+  if (!response.ok)
+    throw new ProviderFailure(`HTTP_${response.status}`, response.status === 429 || response.status >= 500);
+  const body = (await response.json()) as {
+    data?: Array<{ id?: string }>;
+  };
+  return [...new Set(
+    (body.data ?? [])
+      .map((item) => String(item.id ?? '').trim())
+      .filter(Boolean),
+  )];
+}
+
+export async function probeNvidiaModel(
+  modelId: string,
+  apiKey = process.env.NVIDIA_API_KEY?.trim(),
+): Promise<ProviderHealthResult> {
+  if (!apiKey)
+    return { status: 'NOT_CONFIGURED', message: 'NVIDIA_API_KEY is not configured.' };
+  try {
+    const response = await healthFetch(
+      `${nvidiaBaseUrl()}/v1/chat/completions`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${apiKey}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: modelId,
+          messages: [{ role: 'user', content: 'Reply with OK.' }],
+          max_tokens: 2,
+          stream: false,
+        }),
+      },
+      12000,
+    );
+    const result = healthFromResponse(response);
+    if (result.status === 'HEALTHY') {
+      const body = (await response.json().catch(() => null)) as
+        | { choices?: unknown[] }
+        | null;
+      if (!body?.choices?.length)
+        return {
+          status: 'DEGRADED',
+          message: 'The endpoint responded but did not return a chat completion.',
+        };
+    } else {
+      await response.body?.cancel().catch(() => {});
+    }
+    return result;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError')
+      return { status: 'DEGRADED', message: 'NVIDIA model probe timed out.' };
+    return { status: 'DEGRADED', message: 'NVIDIA model probe failed.' };
+  }
+}
+
 export async function streamProvider(
   model: DbModel,
   messages: ProviderMessage[],
@@ -533,5 +801,7 @@ export async function streamProvider(
       return anthropic(model, messages, files, maxOutput, signal, delta, usage, options);
     case 'MISTRAL':
       return mistral(model, messages, files, maxOutput, signal, delta, usage, options);
+    case 'NVIDIA':
+      return nvidia(model, messages, files, maxOutput, signal, delta, usage, options);
   }
 }
