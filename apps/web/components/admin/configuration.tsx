@@ -733,7 +733,7 @@ export function AdminRegistry({ plans = false }: { plans?: boolean }) {
         }>('/admin/workspace/nvidia-sync', {
           accessToken: resource.accessToken,
           method: 'POST',
-          body: JSON.stringify({ probeLimit: 12 }),
+          body: JSON.stringify({ probeLimit: 8 }),
         });
         discovered = result.discovered;
         healthy = result.healthy;
