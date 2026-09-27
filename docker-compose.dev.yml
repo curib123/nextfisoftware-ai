@@ -1,9 +1,5 @@
-# Development overlay. Use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 services:
   vrompt-web:
-    build:
-      target: dependencies
-    command: npm run dev --workspace @vrompt/web -- --hostname 0.0.0.0 --port 3000
     environment:
       WATCHPACK_POLLING: 'true'
       CHOKIDAR_USEPOLLING: 'true'
@@ -11,32 +7,6 @@ services:
       NEXT_DIST_DIR: .next-docker
     volumes:
       - vrompt-web-next:/workspace/apps/web/.next-docker
-
-  vrompt-api:
-    build:
-      target: dependencies
-    command: sh -c "npm run prisma:generate --workspace @vrompt/api && npm run prisma:deploy --workspace @vrompt/api && npm run dev --workspace @vrompt/api"
-    environment:
-      CHOKIDAR_USEPOLLING: 'true'
-      CHOKIDAR_INTERVAL: '1000'
-
-  vrompt-seed:
-    build:
-      context: .
-      dockerfile: infrastructure/docker/api.Dockerfile
-      target: dependencies
-    container_name: vrompt-seed
-    profiles: ['seed']
-    environment:
-      NODE_ENV: development
-      DATABASE_URL: postgresql://postgres:postgres@vrompt-postgres:5432/vrompt
-    command: sh -c "npm run prisma:generate --workspace @vrompt/api && npm run prisma:deploy --workspace @vrompt/api && npm run prisma:seed --workspace @vrompt/api"
-    depends_on:
-      vrompt-postgres:
-        condition: service_healthy
-    volumes:
-      - .:/workspace
-      - vrompt-node-modules:/workspace/node_modules
 
 volumes:
   vrompt-web-next:

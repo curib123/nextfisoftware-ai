@@ -1,16 +1,6 @@
-# Local host-port overrides. Internal container ports remain unchanged.
 services:
   vrompt-web:
     environment:
       NEXT_PUBLIC_SITE_URL: http://localhost:3100
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:3200/api/v1
     ports: !override
       - '3100:3000'
-
-  vrompt-api:
-    environment:
-      WEB_ORIGIN: http://localhost:3100
-      GOOGLE_CALLBACK_URL: http://localhost:3200/api/v1/auth/google/callback
-      GITHUB_CALLBACK_URL: http://localhost:3200/api/v1/auth/github/callback
-    ports: !override
-      - '3200:4000'

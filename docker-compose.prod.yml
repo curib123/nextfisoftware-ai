@@ -8,8 +8,6 @@ services:
     depends_on:
       vrompt-web:
         condition: service_healthy
-      vrompt-api:
-        condition: service_healthy
     ports:
       - '80:80'
       - '443:443'
@@ -19,165 +17,42 @@ services:
       VROMPT_TLS_KEY_PATH: ${VROMPT_TLS_KEY_PATH:?VROMPT_TLS_KEY_PATH is required}
     volumes:
       - ${VROMPT_LETSENCRYPT_DIR:?VROMPT_LETSENCRYPT_DIR is required}:/etc/letsencrypt:ro
-    networks:
-      - edge
-      - backend
-    healthcheck:
-      test: ['CMD', 'wget', '--spider', '--quiet', 'http://localhost/']
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+    networks: [edge, backend]
 
   vrompt-web:
     build:
       context: .
       dockerfile: infrastructure/docker/web.Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-${WEB_ORIGIN}}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
     container_name: vrompt-web
     restart: unless-stopped
     environment:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
       PORT: 3000
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-${WEB_ORIGIN}}
-      INTERNAL_API_BASE_URL: http://vrompt-api:4000/api/v1
-    expose:
-      - '3000'
-    depends_on:
-      vrompt-api:
-        condition: service_healthy
-    networks:
-      - backend
-    stop_grace_period: 20s
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "fetch('http://localhost:3000').then((response)=>process.exit(response.ok?0:1)).catch(()=>process.exit(1))",
-        ]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
-  vrompt-api:
-    build:
-      context: .
-      dockerfile: infrastructure/docker/api.Dockerfile
-    container_name: vrompt-api
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 4000
-      API_PREFIX: api/v1
-      SWAGGER_ENABLED: 'false'
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@vrompt-postgres:5432/${POSTGRES_DB:-vrompt}
-      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD is required}@vrompt-redis:6379
-      WEB_ORIGIN: ${WEB_ORIGIN:?WEB_ORIGIN is required}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?NEXT_PUBLIC_SUPABASE_URL is required}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:?NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required}
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:?SUPABASE_SECRET_KEY is required}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
       PAYMONGO_MODE: ${PAYMONGO_MODE:-test}
       PAYMONGO_SECRET_KEY: ${PAYMONGO_SECRET_KEY:-}
       PAYMONGO_WEBHOOK_SECRET: ${PAYMONGO_WEBHOOK_SECRET:-}
       PAYMONGO_PAYMENT_METHODS: ${PAYMONGO_PAYMENT_METHODS:-card,gcash,qrph}
       PAYMONGO_CHECKOUT_EXPIRY_HOURS: ${PAYMONGO_CHECKOUT_EXPIRY_HOURS:-24}
-      PAYMONGO_CHECKOUT_RATE_LIMIT_PER_HOUR: ${PAYMONGO_CHECKOUT_RATE_LIMIT_PER_HOUR:-10}
-      CHAT_STORAGE_DIR: /var/lib/vrompt/private-chat-files
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
-      JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-900}
-      JWT_REFRESH_TTL_SECONDS: ${JWT_REFRESH_TTL_SECONDS:-604800}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:?GOOGLE_CALLBACK_URL is required}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
-      GITHUB_CALLBACK_URL: ${GITHUB_CALLBACK_URL:-}
-      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
-      ADMIN_BOOTSTRAP_USERNAME: ${ADMIN_BOOTSTRAP_USERNAME:-}
-      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
-      AUTH_COOKIE_SECURE: 'true'
-      AUTH_COOKIE_SAME_SITE: ${AUTH_COOKIE_SAME_SITE:-lax}
-    volumes:
-      - vrompt-private-files:/var/lib/vrompt/private-chat-files
-    expose:
-      - '4000'
-    depends_on:
-      vrompt-postgres:
-        condition: service_healthy
-      vrompt-redis:
-        condition: service_healthy
-    networks:
-      - backend
-    stop_grace_period: 30s
+    expose: ['3000']
+    networks: [backend]
+    stop_grace_period: 20s
     healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "fetch('http://localhost:4000/api/v1/health').then((response)=>response.ok?response.json().then((body)=>process.exit(body.status==='ok'?0:1)):process.exit(1)).catch(()=>process.exit(1))",
-        ]
+      test: ['CMD','node','-e',"fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 20s
-
-  vrompt-postgres:
-    image: postgres:16-alpine
-    container_name: vrompt-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-vrompt}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-    expose:
-      - '5432'
-    volumes:
-      - vrompt-postgres-prod-data:/var/lib/postgresql/data
-    networks:
-      - backend
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  vrompt-redis:
-    image: redis:7-alpine
-    container_name: vrompt-redis
-    restart: unless-stopped
-    command:
-      - redis-server
-      - --appendonly
-      - 'yes'
-      - --requirepass
-      - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-    environment:
-      REDISCLI_AUTH: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-    expose:
-      - '6379'
-    volumes:
-      - vrompt-redis-prod-data:/data
-    networks:
-      - backend
-    healthcheck:
-      test: ['CMD-SHELL', 'redis-cli -a "$${REDISCLI_AUTH}" ping | grep PONG']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  vrompt-private-files:
-  vrompt-postgres-prod-data:
-  vrompt-redis-prod-data:
+      start_period: 30s
 
 networks:
   edge:
