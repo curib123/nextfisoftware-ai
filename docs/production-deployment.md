@@ -13,7 +13,7 @@ Prisma runtime, Redis service, or self-hosted PostgreSQL service.
 3. Keep the framework preset as **Next.js**.
 4. Add the production environment variables from `.env.production.example` in
    Vercel Project Settings.
-5. Set `NEXT_PUBLIC_SITE_URL` to the final production origin.
+5. Set `NEXT_PUBLIC_SITE_URL` to `https://vrompt-ai-workplace-web.vercel.app` (or your final custom production origin).
 6. Deploy.
 
 The server-only values must remain encrypted Vercel environment variables:
@@ -55,16 +55,26 @@ In Google Cloud:
 
 In Supabase:
 
-1. Open **Authentication → Providers → Google**.
-2. Enable Google.
-3. Add the Google Client ID and Client Secret.
-4. Add the Vrompt application callback to the Supabase redirect allow list:
+1. Open **Authentication → URL Configuration**.
+2. Set **Site URL** to:
 
-   `https://YOUR_PRODUCTION_DOMAIN/auth/callback`
+   `https://vrompt-ai-workplace-web.vercel.app`
 
-5. Keep this development callback available when needed:
+3. Add this exact production callback to **Redirect URLs**:
+
+   `https://vrompt-ai-workplace-web.vercel.app/auth/callback`
+
+4. Keep this local-development callback only as an additional Redirect URL:
 
    `http://localhost:3000/auth/callback`
+
+5. Open **Authentication → Providers → Google**.
+6. Enable Google and add the Google Client ID and Client Secret.
+
+If Supabase receives a `redirect_to` value that is not on the Redirect URLs
+allow list, it falls back to the configured Site URL. If Site URL is still
+`http://localhost:3000`, production OAuth will finish at
+`http://localhost:3000/?code=...` instead of Vrompt.
 
 The application route `/api/v1/auth/google` starts the PKCE OAuth flow and
 `/auth/callback` completes it.
