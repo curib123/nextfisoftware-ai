@@ -1,4 +1,4 @@
-name: Vrompt CI/CD
+name: Vrompt CI
 
 on:
   pull_request:
@@ -27,71 +27,13 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
-      - name: Verify no legacy backend runtime remains
+      - name: Verify legacy runtimes and Docker are gone
         run: |
           test ! -d apps/api
-          ! grep -R "vrompt-api\|REDIS_URL\|DATABASE_URL" docker-compose*.yml .env*.example README.md
-
-  production:
-    name: Build and publish production images
-    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
-    needs: quality
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    env:
-      IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/vrompt
-      IMAGE_TAG: ${{ github.sha }}
-      SITE_URL: ${{ vars.VROMPT_SITE_URL }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Require production site URL
-        run: test -n "$SITE_URL"
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: infrastructure/docker/web.Dockerfile
-          build-args: NEXT_PUBLIC_SITE_URL=${{ env.SITE_URL }}
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}/web:${{ env.IMAGE_TAG }}
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: infrastructure/docker/nginx.Dockerfile
-          push: true
-          tags: ${{ env.IMAGE_PREFIX }}/nginx:${{ env.IMAGE_TAG }}
-
-  deployment:
-    name: Deploy production images
-    if: github.event_name == 'push' && github.ref == 'refs/heads/production'
-    needs: production
-    runs-on: ubuntu-latest
-    env:
-      IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/vrompt
-      IMAGE_TAG: ${{ github.sha }}
-      DEPLOY_HOST: ${{ secrets.ORACLE_HOST || secrets.VPS_HOST }}
-      DEPLOY_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY || secrets.VPS_SSH_KEY }}
-      DEPLOY_USER: ${{ secrets.ORACLE_USER || secrets.VPS_USER }}
-    steps:
-      - name: Report unconfigured deployment
-        if: env.DEPLOY_HOST == '' || env.DEPLOY_SSH_KEY == '' || env.DEPLOY_USER == ''
-        run: echo "::notice::Oracle deployment skipped because deploy secrets are not all configured."
-      - name: Configure SSH
-        if: env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != '' && env.DEPLOY_USER != ''
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/vrompt_deploy
-          chmod 600 ~/.ssh/vrompt_deploy
-          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
-      - name: Deploy and verify
-        if: env.DEPLOY_HOST != '' && env.DEPLOY_SSH_KEY != '' && env.DEPLOY_USER != ''
-        run: |
-          ssh -i ~/.ssh/vrompt_deploy "$DEPLOY_USER@$DEPLOY_HOST" \
-            "cd /srv/vrompt && IMAGE_TAG=$IMAGE_TAG VROMPT_IMAGE_PREFIX=$IMAGE_PREFIX VROMPT_DEPLOY_BRANCH=production ./deploy.sh"
+          test ! -e .dockerignore
+          test ! -e docker-compose.yml
+          test ! -d infrastructure/docker
+          test ! -d infrastructure/vps
+          test ! -d infrastructure/deploy
+          test ! -d infrastructure/release
+          ! grep -R "vrompt-api\|REDIS_URL\|DATABASE_URL\|docker-compose" .env*.example README.md docs .github/CI-CD.md
