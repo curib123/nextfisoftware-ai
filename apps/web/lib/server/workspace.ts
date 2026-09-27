@@ -1022,32 +1022,75 @@ export async function streamMessage(
   const requestId = uuid(input.requestId, 'Request ID');
   const feature: CreditFeature =
     input.feature === 'image_generation' ? 'image_generation' : 'chat';
-  const mode = input.mode === 'MANUAL' ? 'MANUAL' : 'AUTO';
-  const modelId = mode === 'MANUAL' ? uuid(input.modelId, 'Model ID') : null;
+  const mode =
+    input.mode === 'BYOK'
+      ? 'BYOK'
+      : input.mode === 'MANUAL'
+        ? 'MANUAL'
+        : 'AUTO';
+  const modelId = mode === 'AUTO' ? null : uuid(input.modelId, 'Model ID');
   const content = stringValue(input.content, 'Message', { min: 1, max: 64000 });
   const attachmentIds = Array.isArray(input.attachmentIds)
     ? input.attachmentIds.map((value) => uuid(value, 'Attachment ID'))
     : [];
   const cfg = await configuration(user.profile.id);
-  const policy = findPolicy(cfg.policies, mode, modelId);
+  let policy: DbPolicy;
+  let model: DbModel | undefined;
+  let userApiKey: string | undefined;
+
+  if (mode === 'BYOK') {
+    policy = byokPolicy();
+    model = cfg.models.find((item) => item.id === modelId);
+    if (!model || !model.enabled || model.maintenance || !model.manual_available)
+      throw new ApiError('This model is unavailable.', 404);
+    userApiKey =
+      (await getUserProviderKey(user.profile.id, model.provider)) ?? undefined;
+    if (!userApiKey)
+      throw new ApiError(
+        `Connect your ${model.provider} API key in Settings before using BYO mode.`,
+        403,
+      );
+  } else {
+    policy = findPolicy(cfg.policies, mode, modelId);
+    model = resolveModel(cfg.models, policy, mode, feature);
+  }
+
   if (!policy.allowed_features.includes(feature))
     throw new ApiError('This task is not included in the selected allowance.', 403);
   if (content.length > policy.max_input_chars)
-    throw new ApiError('This message is longer than the selected plan allows.', 413);
+    throw new ApiError('This message is longer than the selected allowance.', 413);
   if (attachmentIds.length > policy.max_files)
     throw new ApiError('Too many files are selected for this request.', 413);
 
-  const model = resolveModel(cfg.models, policy, mode, feature);
   if (!model) throw new ApiError('No configured model can safely handle this request.', 503);
+  if (
+    feature === 'image_generation' &&
+    !model.capabilities.includes('image_generation')
+  )
+    throw new ApiError('This model does not support image generation.', 403);
+
   const serverCredits =
-    mode === 'AUTO' ? autoCredits(policy, feature) : modelCredits(model, policy, feature);
-  if (!serverCredits) throw new ApiError('Pricing for this model is not configured safely.', 409);
-  const maxCredits = integerValue(input.maxCredits ?? serverCredits, 'Maximum credits', 1, 100000);
-  if (serverCredits > maxCredits)
-    throw new ApiError(
-      `This task now costs ${serverCredits} credits. Refresh usage before sending.`,
-      409,
+    mode === 'BYOK'
+      ? 0
+      : mode === 'AUTO'
+        ? autoCredits(policy, feature)
+        : modelCredits(model, policy, feature);
+  if (serverCredits === null || serverCredits === undefined)
+    throw new ApiError('Pricing for this model is not configured safely.', 409);
+
+  if (mode !== 'BYOK') {
+    const maxCredits = integerValue(
+      input.maxCredits ?? serverCredits,
+      'Maximum credits',
+      1,
+      100000,
     );
+    if (serverCredits > maxCredits)
+      throw new ApiError(
+        `This task now costs ${serverCredits} credits. Refresh usage before sending.`,
+        409,
+      );
+  }
 
   const files = await loadFiles(user, id, attachmentIds, policy, model);
   const fingerprint = createHash('sha256')
@@ -1117,6 +1160,7 @@ export async function streamMessage(
             usage,
             {
               feature,
+              apiKey: userApiKey,
               image: async (mimeType, base64) => {
                 const bytes = Uint8Array.from(Buffer.from(base64, 'base64'));
                 if (bytes.byteLength > 10_000_000)
@@ -1166,6 +1210,7 @@ export async function streamMessage(
             providerMessages.map((item) => item.content).join('\n'),
             output,
             generated,
+            mode === 'BYOK',
           );
           await rpc('finalize_generation', {
             p_request_id: requestId,
@@ -1244,6 +1289,7 @@ function resolveModel(
     !model.enabled ||
     model.maintenance ||
     !providerConfigured(model.provider) ||
+    (model.provider === 'NVIDIA' && model.health_status !== 'HEALTHY') ||
     (feature === 'image_generation' && !model.capabilities.includes('image_generation'))
   )
     return undefined;
@@ -1324,6 +1370,7 @@ async function recordUsage(
   inputText: string,
   outputText: string,
   generatedImage: boolean,
+  userOwnedProviderCost = false,
 ) {
   const normalized = usage.reported
     ? usage
@@ -1332,13 +1379,17 @@ async function recordUsage(
         input: Math.ceil(inputText.length / 4),
         output: Math.ceil(outputText.length / 4),
       };
-  const estimatedCost = actualProviderCost(model, {
-    inputTokens: normalized.input,
-    cachedInputTokens: normalized.cached,
-    cacheWriteInputTokens: normalized.cacheWrite,
-    outputTokens: normalized.output,
-    imageCostUsd: generatedImage ? Number(model.image_max_cost_usd ?? 0) : 0,
-  });
+  const estimatedCost = userOwnedProviderCost
+    ? 0
+    : actualProviderCost(model, {
+        inputTokens: normalized.input,
+        cachedInputTokens: normalized.cached,
+        cacheWriteInputTokens: normalized.cacheWrite,
+        outputTokens: normalized.output,
+        imageCostUsd: generatedImage
+          ? Number(model.image_max_cost_usd ?? 0)
+          : 0,
+      });
   await rest('usage_records', {
     admin: true,
     method: 'POST',
@@ -1355,6 +1406,7 @@ async function recordUsage(
       credit_units: creditUnits,
       estimated_cost: estimatedCost,
       feature,
+      credential_mode: userOwnedProviderCost ? 'BYOK' : 'VROMPT',
     },
   });
 }
