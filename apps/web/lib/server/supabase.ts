@@ -131,12 +131,14 @@ export async function storageUpload(
   bytes: Uint8Array,
   contentType: string,
 ) {
+  const payload = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(payload).set(bytes);
   const response = await supabaseFetch(
     `/storage/v1/object/vrompt-private/${encodeStoragePath(path)}`,
     {
       method: 'POST',
       admin: true,
-      body: bytes,
+      body: payload,
       headers: {
         'content-type': contentType,
         'x-upsert': 'false',
