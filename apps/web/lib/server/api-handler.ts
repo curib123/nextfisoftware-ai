@@ -37,6 +37,7 @@ import {
   workspaceModels,
   workspaceUsage,
 } from './workspace';
+import { providerConnectionsRoute } from './provider-credentials';
 import { authAdminJson, authJson, rest } from './supabase';
 
 const REFRESH_COOKIE = 'vrompt_refresh';
@@ -126,6 +127,10 @@ export async function handleApi(request: NextRequest, path: string[]) {
       const user = await requireUser(request);
       if (second === 'models' && request.method === 'GET')
         return json(await workspaceModels(user));
+      if (second === 'provider-connections') {
+        if (request.method !== 'GET') assertSameOrigin(request);
+        return json(await providerConnectionsRoute(request, user, third));
+      }
       if (second === 'usage' && request.method === 'GET')
         return json(await workspaceUsage(user));
       if (second === 'preferences')
