@@ -405,6 +405,14 @@ function mapModelConfig(row: AdminModelRow) {
     },
     effectiveFrom: row.effective_from,
     effectiveUntil: row.effective_until,
+    bestFor: row.best_for,
+    quickFacts: row.quick_facts,
+    details: row.details,
+    freeEndpoint: row.free_endpoint,
+    source: row.source,
+    healthStatus: row.health_status,
+    healthCheckedAt: row.health_checked_at,
+    healthMessage: row.health_message,
   };
 }
 
