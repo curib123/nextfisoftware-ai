@@ -46,12 +46,12 @@ One credit budgets at most **US$0.008** of provider work. Default monthly provid
 
 | Plan | Price | Credits | Max modeled AI cost |
 | --- | ---: | ---: | ---: |
-| Free | $0 | 30 | $0.24 |
+| Free (Mistral only) | $0 | 30 | $0.24 |
 | Starter | $5.99 | 100 | $0.80 |
 | Pro | $11.99 | 250 | $2.00 |
 | Max | $24.99 | 600 | $4.80 |
 
-Auto mode uses economical models; premium/manual models consume more credits according to their configured bounded cost. Admin analytics report revenue, AI cost, variable cost, contribution profit, and margin.
+Free accounts route chat exclusively through the Mistral API. Paid plans can use multi-model Auto routing and eligible manual models; premium/manual models consume more credits according to their configured bounded cost. Admin analytics report revenue, AI cost, variable cost, contribution profit, and margin.
 
 ## Production
 
