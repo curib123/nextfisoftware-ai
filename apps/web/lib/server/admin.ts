@@ -38,6 +38,24 @@ type Economic = {
   amount: string | number;
   created_at: string;
 };
+type WebhookFailure = {
+  external_event_id: string;
+  event_type: string;
+  status: string;
+  error_code: string | null;
+  received_at: string;
+};
+type SiteSettingRow = { value: unknown };
+type CreatedAuthUser = { id?: string; user?: { id?: string } };
+type AuditRow = {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
 
 type SettingDefinition = {
   key: string;
@@ -161,7 +179,7 @@ export async function handleAdmin(
       return rest('webhook_events', {
         admin: true,
         query: 'status=eq.FAILED&select=external_event_id,event_type,status,error_code,received_at&order=received_at.desc&limit=50',
-      }).then((rows: any[]) =>
+      }).then((rows: WebhookFailure[]) =>
         rows.map((row) => ({
           externalEventId: row.external_event_id,
           eventType: row.event_type,
@@ -341,7 +359,7 @@ async function workspaceConfiguration() {
   };
 }
 
-function mapModelConfig(row: any) {
+function mapModelConfig(row: DbModel) {
   return {
     id: row.id,
     provider: row.provider,
@@ -485,7 +503,7 @@ async function modelMutation(request: Request, actor: Authenticated, id?: string
     if (!Number.isFinite(value) || value < 0) throw new ApiError('Model pricing must be non-negative numbers.');
 
   const method = id ? 'PATCH' : 'POST';
-  const rows = await rest<any[]>('ai_models', {
+  const rows = await rest<DbModel[]>('ai_models', {
     admin: true,
     method,
     query: id ? `id=eq.${encodeURIComponent(routeId(id, 'Model ID'))}` : undefined,
@@ -520,7 +538,7 @@ async function policyMutation(request: Request, actor: Authenticated) {
     allowed_features: Array.isArray(input.allowedFeatures) ? input.allowedFeatures.map(String) : ['chat'],
     routing: input.routing && typeof input.routing === 'object' ? input.routing : {},
   };
-  const rows = await rest<any[]>('generation_policies', {
+  const rows = await rest<DbPolicy[]>('generation_policies', {
     admin: true,
     method: 'POST',
     query: 'on_conflict=plan_id,bucket',
@@ -558,7 +576,7 @@ async function planMutation(request: Request, actor: Authenticated, id?: string)
     is_active: input.isActive !== false,
     display_order: integerValue(input.displayOrder ?? 0, 'Display order', -1000, 1000),
   };
-  const rows = await rest<any[]>('billing_plans', {
+  const rows = await rest<DbPlan[]>('billing_plans', {
     admin: true,
     method: id ? 'PATCH' : 'POST',
     query: id ? `id=eq.${encodeURIComponent(routeId(id, 'Plan ID'))}` : undefined,
@@ -649,7 +667,7 @@ async function settingsRoute(request: Request, actor: Authenticated, key?: strin
     throw new ApiError('Method not allowed.', 405);
   }
 
-  const rows = await rest<any[]>('site_settings', {
+  const rows = await rest<SiteSettingRow[]>('site_settings', {
     admin: true,
     method: 'POST',
     query: 'on_conflict=key',
@@ -693,7 +711,7 @@ async function usersRoute(request: Request, actor: Authenticated, id?: string) {
     const email = stringValue(input.email, 'Email', { min: 3, max: 320 }).toLowerCase();
     const password = stringValue(input.password, 'Password', { min: 12, max: 128 });
     const username = stringValue(input.username, 'Username', { min: 2, max: 32 });
-    const created: any = await authAdminJson('/users', {
+    const created = await authAdminJson<CreatedAuthUser>('/users', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -762,7 +780,7 @@ async function auditRoute(request: Request) {
   const params = new URL(request.url).searchParams;
   const page = Math.max(1, Number(params.get('page') ?? 1) || 1);
   const actorName = (params.get('actor') ?? '').trim();
-  const rows = await rest<any[]>('audit_logs', {
+  const rows = await rest<AuditRow[]>('audit_logs', {
     admin: true,
     query: 'select=*&order=created_at.desc',
   });
