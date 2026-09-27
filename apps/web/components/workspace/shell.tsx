@@ -289,13 +289,17 @@ export function WorkspaceShell({
             <button
               className="workspace-topbar-avatar"
               popoverTarget="account-actions"
-              aria-label="Account menu"
+              aria-label={`Account menu for ${user.username}`}
+              title={user.username}
               type="button"
             >
-              <span className="account-avatar">
-                {user?.username.slice(0, 2).toUpperCase() ?? 'V'}
+              <span className="account-avatar" aria-hidden="true">
+                {user.username.slice(0, 2).toUpperCase()}
               </span>
-              <span className="workspace-topbar-user">{user.username}</span>
+              <span className="workspace-topbar-identity">
+                <span className="workspace-topbar-user">{user.username}</span>
+                <small>Account</small>
+              </span>
             </button>
           </div>
         </header>
