@@ -12,7 +12,7 @@ deployment.
 - **Authentication:** Supabase Auth with Google/GitHub OAuth for users and a
   separate staff password flow.
 - **Files:** private Supabase Storage bucket (`vrompt-private`).
-- **AI:** provider calls are made only from Next.js server code. Provider keys never reach the browser.
+- **AI:** provider calls are made only from Next.js server code. Shared provider keys never reach the browser. Users may optionally save their own provider keys; Vrompt encrypts them server-side with AES-256-GCM and never returns plaintext credentials.
 - **Payments:** PayMongo checkout + signed webhooks.
 - **Caching / quotas:** Postgres-backed atomic reservations remove the Redis requirement and work on serverless deployments.
 
@@ -51,12 +51,16 @@ Default plans:
 
 | Plan | Price | Credits | Maximum modeled provider budget |
 | --- | ---: | ---: | ---: |
-| Free (Mistral only) | $0 | 30 | $0.24 |
+| Free (verified NVIDIA + Mistral fallback) | $0 | 30 | $0.24 shared-provider ceiling |
 | Starter | $5.99 | 100 | $0.80 |
 | Pro | $11.99 | 250 | $2.00 |
 | Max | $24.99 | 600 | $4.80 |
 
-Free-user spend must still be treated as acquisition cost. Track conversion and contribution margin in the admin analytics view before increasing free allowances.
+Free Auto considers only NVIDIA models that have passed Vrompt's real completion health check; Mistral is retained as the fallback. The NVIDIA developer catalog is synchronized by an administrator in bounded batches so unavailable or non-chat endpoints remain disabled.
+
+BYO requests use a separate zero-credit quota bucket. They do not add provider spend to Vrompt's cost ledger because the user owns the provider account, but they still use Vrompt rate, concurrency, input, file, and timeout limits.
+
+Free-user shared-provider spend must still be treated as acquisition cost. Track conversion and contribution margin in the admin analytics view before increasing free allowances.
 
 ## Required environment variables
 
@@ -66,10 +70,15 @@ NEXT_PUBLIC_SUPABASE_URL=https://ytzjrztxmnhqtokycenw.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 SUPABASE_SECRET_KEY=sb_secret_...
 
+NVIDIA_API_KEY=
+NVIDIA_API_BASE_URL=https://integrate.api.nvidia.com
+MISTRAL_API_KEY=
+
 OPENAI_API_KEY=
 GOOGLE_AI_API_KEY=
 ANTHROPIC_API_KEY=
-MISTRAL_API_KEY=
+
+VROMPT_CREDENTIAL_ENCRYPTION_KEY=
 
 PAYMONGO_MODE=test
 PAYMONGO_SECRET_KEY=sk_test_...
