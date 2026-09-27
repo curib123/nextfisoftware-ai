@@ -32,9 +32,11 @@ Use the dedicated Vrompt project:
 
 `ytzjrztxmnhqtokycenw`
 
-The production baseline is tracked as:
+The current production migration head is tracked as:
 
-`supabase/migrations/20260927130707_nextjs_fullstack.sql`
+`supabase/migrations/20260927190504_nvidia_free_byok_model_metadata.sql`
+
+Fresh Supabase projects must apply the complete migration chain in order.
 
 Database migrations are managed through Supabase and are not run by the Vercel
 application at startup.
