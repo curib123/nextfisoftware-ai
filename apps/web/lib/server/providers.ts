@@ -168,16 +168,18 @@ async function openai(
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new ProviderFailure('NOT_CONFIGURED', false);
   const input: OpenAIInput[] = messages.map((m) => ({ role: m.role, content: m.content }));
+  if (!input.length) input.push({ role: 'user', content: '' });
   if (files.length) {
-    const last = input[input.length - 1];
+    const last = input[input.length - 1]!;
+    const priorText = typeof last.content === 'string' ? last.content : '';
     last.content = [
-      { type: 'input_text', text: last.content },
-      ...files.map((file) =>
+      { type: 'input_text', text: priorText },
+      ...files.map((file): OpenAIContent =>
         file.mimeType.startsWith('image/')
           ? {
               type: 'input_image',
               ...(model.provider_model_id === 'gpt-4o-mini'
-                ? { detail: 'low' }
+                ? { detail: 'low' as const }
                 : {}),
               image_url: `data:${file.mimeType};base64,${b64(file.data)}`,
             }
@@ -359,7 +361,7 @@ async function anthropic(
       content: [{ type: 'text', text: m.content }],
     }));
   if (!input.length) input.push({ role: 'user', content: [{ type: 'text', text: '' }] });
-  input[input.length - 1].content.push(
+  input[input.length - 1]!.content.push(
     ...files.map((file) =>
       file.mimeType === 'text/plain'
         ? {
@@ -396,7 +398,8 @@ async function anthropic(
   let complete = false;
   for await (const event of readEvents(body)) {
     if (event.type === 'error') throw new ProviderFailure('PROVIDER_ERROR');
-    if (event.delta?.type === 'text_delta') delta(String(event.delta.text ?? ''));
+    if (typeof event.delta === 'object' && event.delta?.type === 'text_delta')
+      delta(String(event.delta.text ?? ''));
     const u = event.message?.usage ?? event.usage;
     if (u) {
       usage.raw = { ...usage.raw, ...u };
@@ -431,7 +434,7 @@ async function mistral(
   const input: MistralInput[] = messages.map((m) => ({ role: m.role, content: m.content }));
   if (!input.length) input.push({ role: 'user', content: '' });
   if (files.length) {
-    const last = input[input.length - 1];
+    const last = input[input.length - 1]!;
     const content: MistralPart[] = [{ type: 'text', text: String(last.content) }];
     for (const file of files) {
       if (file.mimeType === 'text/plain')
