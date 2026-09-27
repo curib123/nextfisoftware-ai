@@ -82,8 +82,8 @@ function periodLabel(plan: DbPlan) {
   if (plan.billing_interval === 'ONE_TIME') return 'one-time payment';
   const count = plan.interval_count || 1;
   return count === 1
-    ? \`per \${plan.billing_interval.toLowerCase()}\`
-    : \`every \${count} \${plan.billing_interval.toLowerCase()}s\`;
+    ? `per ${plan.billing_interval.toLowerCase()}`
+    : `every ${count} ${plan.billing_interval.toLowerCase()}s`;
 }
 
 function periodDays(plan: DbPlan) {
@@ -144,11 +144,11 @@ export async function billingSummary(user: Authenticated) {
   await expireSubscriptions(user.profile.id);
   const subscriptions = await rest<SubscriptionRow[]>('subscriptions', {
     admin: true,
-    query: \`user_id=eq.\${encodeURIComponent(user.profile.id)}&select=*&order=created_at.desc&limit=1\`,
+    query: `user_id=eq.${encodeURIComponent(user.profile.id)}&select=*&order=created_at.desc&limit=1`,
   });
   const payments = await rest<PaymentRow[]>('payments', {
     admin: true,
-    query: \`user_id=eq.\${encodeURIComponent(user.profile.id)}&select=*&order=created_at.desc&limit=1\`,
+    query: `user_id=eq.${encodeURIComponent(user.profile.id)}&select=*&order=created_at.desc&limit=1`,
   });
   const subscription = subscriptions[0];
   const active =
@@ -158,7 +158,7 @@ export async function billingSummary(user: Authenticated) {
   if (active) {
     const rows = await rest<DbPlan[]>('billing_plans', {
       admin: true,
-      query: \`id=eq.\${encodeURIComponent(subscription.plan_id)}&select=*\`,
+      query: `id=eq.${encodeURIComponent(subscription.plan_id)}&select=*`,
     });
     plan = rows[0];
   }
@@ -190,7 +190,7 @@ export async function paymentStatus(user: Authenticated, id: string) {
   await expirePendingPayment(user.profile.id, id);
   const rows = await rest<PaymentRow[]>('payments', {
     admin: true,
-    query: \`id=eq.\${encodeURIComponent(id)}&user_id=eq.\${encodeURIComponent(user.profile.id)}&select=*\`,
+    query: `id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.profile.id)}&select=*`,
   });
   if (!rows[0]) throw new ApiError('Payment not found.', 404);
   return {
@@ -209,7 +209,7 @@ export async function createCheckout(request: Request, user: Authenticated) {
   const planCode = typeof input.planCode === 'string' ? input.planCode.trim().toUpperCase() : 'PRO';
   const plans = await rest<DbPlan[]>('billing_plans', {
     admin: true,
-    query: \`code=eq.\${encodeURIComponent(planCode)}&is_active=eq.true&select=*\`,
+    query: `code=eq.${encodeURIComponent(planCode)}&is_active=eq.true&select=*`,
   });
   const plan = plans[0];
   if (!plan || plan.original_price <= 0 || plan.code === 'FREE')
@@ -218,7 +218,7 @@ export async function createCheckout(request: Request, user: Authenticated) {
   const active = await rest<SubscriptionRow[]>('subscriptions', {
     admin: true,
     query:
-      \`user_id=eq.\${encodeURIComponent(user.profile.id)}&status=eq.ACTIVE&current_period_end=gt.\${encodeURIComponent(new Date().toISOString())}&select=*&limit=1\`,
+      `user_id=eq.${encodeURIComponent(user.profile.id)}&status=eq.ACTIVE&current_period_end=gt.${encodeURIComponent(new Date().toISOString())}&select=*&limit=1`,
   });
   if (active[0])
     throw new ApiError('A paid plan is already active. Choose another plan after it ends.', 409);
@@ -227,10 +227,10 @@ export async function createCheckout(request: Request, user: Authenticated) {
   const idempotencyKey =
     rawKey && rawKey.length <= 255 && /^[A-Za-z0-9._:-]+$/.test(rawKey)
       ? rawKey
-      : \`vrompt-\${randomUUID()}\`;
+      : `vrompt-${randomUUID()}`;
   const existing = await rest<PaymentRow[]>('payments', {
     admin: true,
-    query: \`idempotency_key=eq.\${encodeURIComponent(idempotencyKey)}&select=*\`,
+    query: `idempotency_key=eq.${encodeURIComponent(idempotencyKey)}&select=*`,
   });
   if (existing[0]) {
     if (existing[0].user_id !== user.profile.id)
@@ -300,16 +300,16 @@ export async function createCheckout(request: Request, user: Authenticated) {
     const result = await createPayMongoSession({
       amount: finalAmount,
       currency: plan.currency,
-      description: \`\${plan.name} access\`,
+      description: `${plan.name} access`,
       referenceNumber: payment.id,
-      successUrl: \`\${siteOrigin(request)}/billing/checkout?payment=\${payment.id}&state=processing\`,
-      cancelUrl: \`\${siteOrigin(request)}/billing/checkout?payment=\${payment.id}&state=cancelled\`,
+      successUrl: `${siteOrigin(request)}/billing/checkout?payment=${payment.id}&state=processing`,
+      cancelUrl: `${siteOrigin(request)}/billing/checkout?payment=${payment.id}&state=cancelled`,
       idempotencyKey,
     });
     await rest('payments', {
       admin: true,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(payment.id)}\`,
+      query: `id=eq.${encodeURIComponent(payment.id)}`,
       body: {
         external_checkout_session_id: result.id,
         metadata: { checkoutUrl: result.checkoutUrl },
@@ -330,13 +330,13 @@ export async function createCheckout(request: Request, user: Authenticated) {
       rest('payments', {
         admin: true,
         method: 'PATCH',
-        query: \`id=eq.\${encodeURIComponent(payment.id)}\`,
+        query: `id=eq.${encodeURIComponent(payment.id)}`,
         body: { status: 'FAILED', failure_code: 'CHECKOUT_CREATE_FAILED' },
       }),
       rest('subscriptions', {
         admin: true,
         method: 'PATCH',
-        query: \`id=eq.\${encodeURIComponent(subscription.id)}\`,
+        query: `id=eq.${encodeURIComponent(subscription.id)}`,
         body: { status: 'CANCELLED', cancelled_at: new Date().toISOString() },
       }),
     ]);
@@ -349,7 +349,7 @@ async function resolveDiscount(userId: string, code: string, amount: number) {
   if (!normalized) return null;
   const rows = await rest<DiscountRow[]>('discount_codes', {
     admin: true,
-    query: \`code=eq.\${encodeURIComponent(normalized)}&is_active=eq.true&select=*\`,
+    query: `code=eq.${encodeURIComponent(normalized)}&is_active=eq.true&select=*`,
   });
   const row = rows[0];
   const now = Date.now();
@@ -365,7 +365,7 @@ async function resolveDiscount(userId: string, code: string, amount: number) {
   const previous = await rest<{ id: string }[]>('payments', {
     admin: true,
     query:
-      \`user_id=eq.\${encodeURIComponent(userId)}&discount_code_id=eq.\${encodeURIComponent(row.id)}&status=in.(PENDING,PAID)&select=id\`,
+      `user_id=eq.${encodeURIComponent(userId)}&discount_code_id=eq.${encodeURIComponent(row.id)}&status=in.(PENDING,PAID)&select=id`,
   });
   if (previous.length >= row.max_redemptions_per_user)
     throw new ApiError('You have already used this discount code.', 409);
@@ -408,7 +408,7 @@ async function createPayMongoSession(input: {
     redirect: 'error',
     headers: {
       accept: 'application/json',
-      authorization: \`Basic \${Buffer.from(\`\${secret}:\`).toString('base64')}\`,
+      authorization: `Basic ${Buffer.from(`${secret}:`).toString('base64')}`,
       'content-type': 'application/json',
       'idempotency-key': input.idempotencyKey,
     },
@@ -475,7 +475,7 @@ export async function handlePayMongoWebhook(request: Request) {
     { id: string; status: string }[]
   >('webhook_events', {
     admin: true,
-    query: \`external_event_id=eq.\${encodeURIComponent(eventId)}&select=id,status\`,
+    query: `external_event_id=eq.${encodeURIComponent(eventId)}&select=id,status`,
   });
   if (existing[0]?.status === 'PROCESSED' || existing[0]?.status === 'IGNORED')
     return { received: true, processed: false, duplicate: true };
@@ -496,7 +496,7 @@ export async function handlePayMongoWebhook(request: Request) {
     await rest('webhook_events', {
       admin: true,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(existing[0].id)}\`,
+      query: `id=eq.${encodeURIComponent(existing[0].id)}`,
       body: { status: 'RECEIVED', error_code: null, processed_at: null },
     });
   }
@@ -530,7 +530,7 @@ async function processCheckoutPaid(event: PayMongoEvent) {
   const rows = await rest<PaymentRow[]>('payments', {
     admin: true,
     query:
-      \`id=eq.\${encodeURIComponent(reference)}&external_checkout_session_id=eq.\${encodeURIComponent(resource.id)}&select=*\`,
+      `id=eq.${encodeURIComponent(reference)}&external_checkout_session_id=eq.${encodeURIComponent(resource.id)}&select=*`,
   });
   const payment = rows[0];
   if (!payment) throw new Error('Unknown checkout session.');
@@ -548,7 +548,7 @@ async function processCheckoutPaid(event: PayMongoEvent) {
 
   const plans = await rest<DbPlan[]>('billing_plans', {
     admin: true,
-    query: \`id=eq.\${encodeURIComponent(payment.plan_id ?? '')}&select=*\`,
+    query: `id=eq.${encodeURIComponent(payment.plan_id ?? '')}&select=*`,
   });
   const plan = plans[0];
   if (!plan || !payment.subscription_id) throw new Error('Payment plan is missing.');
@@ -557,7 +557,7 @@ async function processCheckoutPaid(event: PayMongoEvent) {
   const changed = await rest<PaymentRow[]>('payments', {
     admin: true,
     method: 'PATCH',
-    query: \`id=eq.\${encodeURIComponent(payment.id)}&status=in.(PENDING,REQUIRES_ACTION,CANCELLED,EXPIRED)\`,
+    query: `id=eq.${encodeURIComponent(payment.id)}&status=in.(PENDING,REQUIRES_ACTION,CANCELLED,EXPIRED)`,
     prefer: 'return=representation',
     body: {
       status: 'PAID',
@@ -570,7 +570,7 @@ async function processCheckoutPaid(event: PayMongoEvent) {
   await rest('subscriptions', {
     admin: true,
     method: 'PATCH',
-    query: \`id=eq.\${encodeURIComponent(payment.subscription_id)}\`,
+    query: `id=eq.${encodeURIComponent(payment.subscription_id)}`,
     body: {
       status: 'ACTIVE',
       current_period_start: activated.toISOString(),
@@ -590,21 +590,21 @@ async function processRefund(event: PayMongoEvent) {
   if (!externalId) return;
   const rows = await rest<PaymentRow[]>('payments', {
     admin: true,
-    query: \`external_payment_id=eq.\${encodeURIComponent(externalId)}&select=*\`,
+    query: `external_payment_id=eq.${encodeURIComponent(externalId)}&select=*`,
   });
   const payment = rows[0];
   if (!payment) return;
   await rest('payments', {
     admin: true,
     method: 'PATCH',
-    query: \`id=eq.\${encodeURIComponent(payment.id)}\`,
+    query: `id=eq.${encodeURIComponent(payment.id)}`,
     body: { status: 'REFUNDED' },
   });
   if (payment.subscription_id)
     await rest('subscriptions', {
       admin: true,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(payment.subscription_id)}\`,
+      query: `id=eq.${encodeURIComponent(payment.subscription_id)}`,
       body: { status: 'REFUNDED', cancelled_at: new Date().toISOString() },
     });
   await audit(null, 'BILLING_PAYMENT_REFUNDED', 'BILLING_PAYMENT', payment.id);
@@ -629,7 +629,7 @@ function verifySignature(raw: Buffer, header: string) {
   if (!Number.isFinite(seconds) || Math.abs(Date.now() / 1000 - seconds) > 300)
     return false;
   const digest = createHmac('sha256', secret)
-    .update(\`\${timestamp}.\${raw.toString('utf8')}\`)
+    .update(`${timestamp}.${raw.toString('utf8')}`)
     .digest('hex');
   return safeEqual(signature, digest);
 }
@@ -644,7 +644,7 @@ async function markWebhook(externalId: string, status: string, errorCode?: strin
   await rest('webhook_events', {
     admin: true,
     method: 'PATCH',
-    query: \`external_event_id=eq.\${encodeURIComponent(externalId)}\`,
+    query: `external_event_id=eq.${encodeURIComponent(externalId)}`,
     body: {
       status,
       error_code: errorCode ?? null,
@@ -658,7 +658,7 @@ async function expireSubscriptions(userId: string) {
     admin: true,
     method: 'PATCH',
     query:
-      \`user_id=eq.\${encodeURIComponent(userId)}&status=eq.ACTIVE&current_period_end=lte.\${encodeURIComponent(new Date().toISOString())}\`,
+      `user_id=eq.${encodeURIComponent(userId)}&status=eq.ACTIVE&current_period_end=lte.${encodeURIComponent(new Date().toISOString())}`,
     body: { status: 'EXPIRED' },
   });
 }
@@ -667,7 +667,7 @@ async function expirePendingPayment(userId: string, paymentId: string) {
   const rows = await rest<PaymentRow[]>('payments', {
     admin: true,
     query:
-      \`id=eq.\${encodeURIComponent(paymentId)}&user_id=eq.\${encodeURIComponent(userId)}&status=eq.PENDING&select=*\`,
+      `id=eq.${encodeURIComponent(paymentId)}&user_id=eq.${encodeURIComponent(userId)}&status=eq.PENDING&select=*`,
   });
   const payment = rows[0];
   const hours = Math.max(1, Number(process.env.PAYMONGO_CHECKOUT_EXPIRY_HOURS ?? 24));
@@ -676,14 +676,14 @@ async function expirePendingPayment(userId: string, paymentId: string) {
   await rest('payments', {
     admin: true,
     method: 'PATCH',
-    query: \`id=eq.\${encodeURIComponent(payment.id)}\`,
+    query: `id=eq.${encodeURIComponent(payment.id)}`,
     body: { status: 'EXPIRED' },
   });
   if (payment.subscription_id)
     await rest('subscriptions', {
       admin: true,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(payment.subscription_id)}\`,
+      query: `id=eq.${encodeURIComponent(payment.subscription_id)}`,
       body: { status: 'EXPIRED', cancelled_at: new Date().toISOString() },
     });
 }
