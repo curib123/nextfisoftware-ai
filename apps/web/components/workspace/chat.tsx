@@ -48,6 +48,7 @@ export function Chat() {
   const modelChosenByUser = useRef(false);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [feature, setFeature] = useState<'chat' | 'image_generation'>('chat');
+  const [preferByok, setPreferByok] = useState(false);
   const [models, setModels] = useState<Model[]>([]);
   const [selected, setSelected] = useState('AUTO');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -72,7 +73,17 @@ export function Chat() {
   const upload = useRef<HTMLInputElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const modelPicker = useRef<HTMLDetailsElement>(null);
-  const allowance = usage?.allowances.find((a) => a.bucket === selected);
+  const selectedWorkspaceModel =
+    selected === 'AUTO'
+      ? undefined
+      : models.find((model) => model.id === selected);
+  const useByok = Boolean(
+    selectedWorkspaceModel?.byokAvailable &&
+      (preferByok || selectedWorkspaceModel.planAvailable !== true),
+  );
+  const allowance = useByok
+    ? usage?.byokAllowance
+    : usage?.allowances.find((a) => a.bucket === selected);
   const chatAvailable =
     catalog !== null &&
     !catalogError &&
@@ -80,19 +91,20 @@ export function Chat() {
       ? catalog.some(
           (model) => model.available !== false && model.autoAvailable !== false,
         )
-      : models.some((model) => model.id === selected));
+      : Boolean(selectedWorkspaceModel));
   const allowanceExhausted =
     allowance?.dailyRemaining === 0 ||
     allowance?.monthlyRemaining === 0 ||
-    usage?.credits?.remaining === 0;
-  const creditPrice = allowance?.creditCosts
-    ? allowance.creditCosts[feature]
-    : 1;
+    (!useByok && usage?.credits?.remaining === 0);
+  const creditPrice = useByok
+    ? 0
+    : allowance?.creditCosts
+      ? allowance.creditCosts[feature]
+      : 1;
   const canAfford = (price: number | null) =>
-    price !== null && (!usage?.credits || usage.credits.remaining >= price);
-  const selectedCapabilities = availableCapabilities(
-    models.find((model) => model.id === selected),
-  );
+    useByok ||
+    (price !== null && (!usage?.credits || usage.credits.remaining >= price));
+  const selectedCapabilities = availableCapabilities(selectedWorkspaceModel);
   const acceptsPdf =
     selected === 'AUTO' || selectedCapabilities.includes('files');
   const acceptsImage =
@@ -129,11 +141,10 @@ export function Chat() {
     (model) => model.enabled !== false && !model.maintenance,
   );
   const visibleProviders = [...new Set(visibleModels.map((model) => model.provider))];
-  const selectedModel =
-    selected === 'AUTO' ? undefined : models.find((model) => model.id === selected);
+  const selectedModel = selectedWorkspaceModel;
   const autoLabel =
     usage?.plan?.toLowerCase() === 'free'
-      ? 'Auto · Mistral'
+      ? 'Auto · Free AI'
       : 'Auto · Recommended';
 
   function closeModelPicker() {
@@ -144,6 +155,7 @@ export function Chat() {
     modelChosenByUser.current = true;
     setSelectionNotice('');
     setSelected(modelId);
+    setPreferByok(false);
     setFeature('chat');
     closeModelPicker();
   }
@@ -345,7 +357,11 @@ export function Chat() {
             attachmentIds: selectedFiles,
             feature: requestFeature,
             maxCredits: requestCredits,
-            mode: selected === 'AUTO' ? 'AUTO' : 'MANUAL',
+            mode: useByok
+              ? 'BYOK'
+              : selected === 'AUTO'
+                ? 'AUTO'
+                : 'MANUAL',
             ...(selected !== 'AUTO' ? { modelId: selected } : {}),
             ...(regenerate ? { regenerateMessageId: regenerate.id } : {}),
           }),
@@ -797,7 +813,7 @@ export function Chat() {
                         <strong>{autoLabel}</strong>
                         <small>
                           {usage?.plan?.toLowerCase() === 'free'
-                            ? 'Free plan routes through Mistral'
+                            ? 'Healthy NVIDIA models + Mistral fallback'
                             : 'Vrompt chooses an eligible model'}
                         </small>
                       </span>
@@ -808,9 +824,11 @@ export function Chat() {
                       <span>
                         <strong>{selectedModel?.displayName ?? 'Choose model'}</strong>
                         <small>
-                          {selectedModel?.creditCosts?.chat != null
-                            ? `${selectedModel.creditCosts.chat} ${selectedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
-                            : 'Included in your plan'}
+                          {useByok
+                            ? 'Using your API key · 0 Vrompt AI credits'
+                            : selectedModel?.creditCosts?.chat != null
+                              ? `${selectedModel.creditCosts.chat} ${selectedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
+                              : 'Included in your plan'}
                         </small>
                       </span>
                     </>
@@ -832,7 +850,7 @@ export function Chat() {
                     <strong>{autoLabel}</strong>
                     <small>
                       {usage?.plan?.toLowerCase() === 'free'
-                        ? 'Included · Mistral-powered on Free'
+                        ? 'Included · verified NVIDIA pool + Mistral fallback'
                         : 'Recommended · cost-aware routing'}
                     </small>
                   </span>
@@ -845,15 +863,27 @@ export function Chat() {
                     {visibleModels
                       .filter((model) => model.provider === provider)
                       .map((model) => {
+                        const allowedModel = models.find(
+                          (item) => item.id === model.id,
+                        );
                         const selectable = selectableModelIds.has(model.id);
-                        const unavailable = model.available === false;
+                        const byokOnly = Boolean(
+                          allowedModel?.byokAvailable &&
+                            allowedModel.planAvailable !== true,
+                        );
+                        const unavailable =
+                          model.available === false && !allowedModel?.byokAvailable;
                         const includedViaFreeAuto =
                           usage?.plan?.toLowerCase() === 'free' &&
                           model.provider === 'MISTRAL' &&
                           !unavailable;
+                        const includedFreeNvidia = Boolean(
+                          usage?.plan?.toLowerCase() === 'free' &&
+                            model.provider === 'NVIDIA' &&
+                            allowedModel?.planAvailable,
+                        );
                         const locked =
                           !selectable && !includedViaFreeAuto && !unavailable;
-                        const allowedModel = models.find((item) => item.id === model.id);
                         return (
                           <button
                             type="button"
@@ -892,20 +922,28 @@ export function Chat() {
                                   ? 'Upgrade to unlock'
                                   : unavailable
                                     ? 'Temporarily unavailable'
-                                    : includedViaFreeAuto
-                                      ? 'Included through Auto on Free'
-                                      : allowedModel?.creditCosts?.chat != null
-                                      ? `${allowedModel.creditCosts.chat} ${allowedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
-                                      : 'Included in your plan'}
+                                    : byokOnly
+                                      ? 'Using your API key · 0 Vrompt AI credits'
+                                      : includedViaFreeAuto
+                                        ? 'Included through Auto on Free'
+                                        : includedFreeNvidia
+                                          ? 'Verified NVIDIA endpoint · Included in Free'
+                                          : allowedModel?.creditCosts?.chat != null
+                                            ? `${allowedModel.creditCosts.chat} ${allowedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
+                                            : 'Included in your plan'}
                               </small>
                             </span>
                             {locked ? (
                               <span className="model-lock-badge">
                                 <Icon name="lock" /> Upgrade
                               </span>
-                            ) : includedViaFreeAuto ? (
+                            ) : byokOnly ? (
                               <span className="model-included-badge">
-                                <Icon name="check" /> Included
+                                <Icon name="check" /> Your API
+                              </span>
+                            ) : includedViaFreeAuto || includedFreeNvidia ? (
+                              <span className="model-included-badge">
+                                <Icon name="check" /> Free
                               </span>
                             ) : selected === model.id ? (
                               <Icon name="check" />
@@ -919,6 +957,23 @@ export function Chat() {
                 ))}
               </div>
             </details>
+            {selected !== 'AUTO' &&
+              selectedWorkspaceModel?.byokAvailable &&
+              selectedWorkspaceModel.planAvailable === true && (
+                <button
+                  type="button"
+                  className={`composer-byok-toggle ${useByok ? 'is-active' : ''}`}
+                  disabled={busy}
+                  onClick={() => setPreferByok((value) => !value)}
+                  title={
+                    useByok
+                      ? 'Switch back to the Vrompt plan allowance'
+                      : 'Use your connected provider API key for this model'
+                  }
+                >
+                  {useByok ? 'Using my API' : 'Use my API'}
+                </button>
+              )}
             <div className="composer-actions">
               <input
                 type="file"

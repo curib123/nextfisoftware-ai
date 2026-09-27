@@ -5,6 +5,7 @@ import type { DbModel, DbPlan, DbPolicy } from './credits';
 import { PROVIDER_USD_PER_CREDIT } from './credits';
 import { audit } from './billing';
 import { ApiError, bodyJson, integerValue, stringValue, routeId } from './http';
+import { syncNvidiaFreeModels } from './nvidia';
 import { authAdminJson, rest, supabaseFetch } from './supabase';
 
 type Profile = {
@@ -171,6 +172,8 @@ export async function handleAdmin(
       return workspaceConfiguration();
     if (item === 'models')
       return modelMutation(request, actor, id);
+    if (item === 'nvidia-sync')
+      return syncNvidiaFreeModels(request);
     if (item === 'policies')
       return policyMutation(request, actor);
   }
@@ -402,6 +405,14 @@ function mapModelConfig(row: AdminModelRow) {
     },
     effectiveFrom: row.effective_from,
     effectiveUntil: row.effective_until,
+    bestFor: row.best_for,
+    quickFacts: row.quick_facts,
+    details: row.details,
+    freeEndpoint: row.free_endpoint,
+    source: row.source,
+    healthStatus: row.health_status,
+    healthCheckedAt: row.health_checked_at,
+    healthMessage: row.health_message,
   };
 }
 
@@ -497,6 +508,24 @@ async function modelMutation(request: Request, actor: Authenticated, id?: string
     max_context: integerValue(input.maxContext, 'Context limit', 1, 10_000_000),
     max_output: integerValue(input.maxOutput, 'Output limit', 1, 1_000_000),
     currency: 'USD',
+    best_for: Array.isArray(input.bestFor)
+      ? input.bestFor
+          .map((value) => String(value).trim())
+          .filter(Boolean)
+          .slice(0, 12)
+      : [],
+    quick_facts:
+      input.quickFacts &&
+      typeof input.quickFacts === 'object' &&
+      !Array.isArray(input.quickFacts)
+        ? input.quickFacts
+        : {},
+    details:
+      input.details &&
+      typeof input.details === 'object' &&
+      !Array.isArray(input.details)
+        ? input.details
+        : {},
   };
   for (const value of [
     data.routing_cost_score,

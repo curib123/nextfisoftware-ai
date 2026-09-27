@@ -19,7 +19,8 @@ Prisma runtime, Redis service, or self-hosted PostgreSQL service.
 The server-only values must remain encrypted Vercel environment variables:
 
 - `SUPABASE_SECRET_KEY`
-- AI provider API keys
+- AI provider API keys, including `NVIDIA_API_KEY`
+- `VROMPT_CREDENTIAL_ENCRYPTION_KEY` when BYO provider keys are enabled
 - `PAYMONGO_SECRET_KEY`
 - `PAYMONGO_WEBHOOK_SECRET`
 
@@ -31,9 +32,11 @@ Use the dedicated Vrompt project:
 
 `ytzjrztxmnhqtokycenw`
 
-The production baseline is tracked as:
+The current production migration head is tracked as:
 
-`supabase/migrations/20260927130707_nextjs_fullstack.sql`
+`supabase/migrations/20260927190504_nvidia_free_byok_model_metadata.sql`
+
+Fresh Supabase projects must apply the complete migration chain in order.
 
 Database migrations are managed through Supabase and are not run by the Vercel
 application at startup.
@@ -73,3 +76,38 @@ Register the production webhook endpoint:
 `https://YOUR_PRODUCTION_DOMAIN/api/v1/webhooks/paymongo`
 
 After deployment, verify both `/health` and `/api/v1/health`.
+
+
+## NVIDIA Free-model sync
+
+Set `NVIDIA_API_KEY` as a server-only Vercel environment variable. After
+deployment, open **Admin → Models & routing** and choose **Sync NVIDIA free
+models**.
+
+The sync reads the NVIDIA model catalog, performs real chat-completion probes in
+bounded batches, and enables only endpoints that successfully answer. Healthy
+NVIDIA models are added to the Free plan and Free Auto pool. Failed,
+rate-limited, non-chat, or otherwise unverified endpoints remain unavailable.
+Mistral stays in the Free Auto pool as the fallback.
+
+NVIDIA-hosted developer endpoints are controlled by NVIDIA and can have
+account/model rate limits; Vrompt therefore treats health as dynamic rather than
+assuming every listed model is usable.
+
+## Bring Your Own API keys
+
+Set `VROMPT_CREDENTIAL_ENCRYPTION_KEY` before enabling user BYO connections.
+Generate one stable 32-byte key, for example:
+
+```bash
+openssl rand -base64 32
+```
+
+Store it only in Vercel's encrypted environment settings. Do not rotate it
+without a credential migration: existing saved provider keys are encrypted with
+that value.
+
+Users can then connect NVIDIA, OpenAI, Google AI, Anthropic, or Mistral from
+**Settings → Your AI provider keys**. A saved key is verified before use,
+encrypted server-side, masked in the UI, and never returned to the browser in
+plaintext.

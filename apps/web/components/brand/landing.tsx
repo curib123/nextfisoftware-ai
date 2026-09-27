@@ -19,6 +19,7 @@ import {
 import { Icon, type IconName } from '@/components/ui/icon';
 import { apiRequest, type Model } from '@/lib/api';
 import { PlanBadge } from '@/components/billing/plan-badge';
+import { Modal } from '@/components/ui/modal';
 
 export const starterTasks: {
   key: string;
@@ -57,6 +58,7 @@ export function Landing() {
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
+  const [detailModel, setDetailModel] = useState<Model | null>(null);
   const plans = usePlans();
   useEffect(() => {
     const controller = new AbortController();
@@ -92,7 +94,16 @@ export function Landing() {
     );
   }
   const filtered = models.filter((model) =>
-    `${model.displayName} ${model.provider} ${model.capabilities.join(' ')}`
+    [
+      model.displayName,
+      model.provider,
+      model.providerModelId,
+      model.category,
+      ...(model.bestFor ?? []),
+      ...model.capabilities,
+    ]
+      .filter(Boolean)
+      .join(' ')
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
@@ -414,9 +425,24 @@ export function Landing() {
                     {providerNames[model.provider.toLowerCase()] ||
                       model.provider}
                   </span>
+                  {model.freeEndpoint && (
+                    <span className="model-free-badge">Free endpoint</span>
+                  )}
                 </div>
                 <h3>{model.displayName}</h3>
                 <p>{model.description}</p>
+
+                {Boolean(model.bestFor?.length) && (
+                  <div className="model-best-for">
+                    <strong>Best for</strong>
+                    <div>
+                      {model.bestFor?.slice(0, 3).map((item) => (
+                        <span key={item}>{item}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="capability-list">
                   {model.capabilities
                     .filter((capability) =>
@@ -434,22 +460,197 @@ export function Landing() {
                       </span>
                     ))}
                 </div>
-                {model.available === false && (
-                  <small className="model-availability">
-                    Temporarily unavailable
-                  </small>
-                )}
-                <button
-                  className="text-link"
-                  onClick={() =>
-                    begin(`/chat?model=${encodeURIComponent(model.id)}`)
-                  }
-                >
-                  Explore in chat <Icon name="arrow" />
-                </button>
+
+                <div className="model-card-status">
+                  {model.provider === 'NVIDIA' && (
+                    <small
+                      className={`model-health model-health-${(model.healthStatus ?? 'unknown').toLowerCase()}`}
+                    >
+                      {model.healthStatus === 'HEALTHY'
+                        ? 'Live health check passed'
+                        : model.healthStatus
+                          ? model.healthStatus.replaceAll('_', ' ')
+                          : 'Health not checked'}
+                    </small>
+                  )}
+                  {model.available === false && (
+                    <small className="model-availability">
+                      Temporarily unavailable
+                    </small>
+                  )}
+                </div>
+
+                <div className="model-card-actions">
+                  <button
+                    className="text-link"
+                    onClick={() => setDetailModel(model)}
+                  >
+                    Full details
+                  </button>
+                  <button
+                    className="text-link"
+                    onClick={() =>
+                      begin(`/chat?model=${encodeURIComponent(model.id)}`)
+                    }
+                  >
+                    Explore in chat <Icon name="arrow" />
+                  </button>
+                </div>
               </article>
             ))}
           </div>
+          <Modal
+            open={Boolean(detailModel)}
+            onClose={() => setDetailModel(null)}
+            title={detailModel?.displayName ?? 'Model details'}
+            description={
+              detailModel
+                ? `${providerNames[detailModel.provider.toLowerCase()] ?? detailModel.provider} · ${detailModel.category ?? 'AI model'}`
+                : 'AI model details'
+            }
+            className="model-detail-modal"
+          >
+            {detailModel && (
+              <div className="model-detail-content">
+                <div className="model-detail-hero">
+                  <ProviderIcon provider={detailModel.provider} />
+                  <div>
+                    <span className="eyebrow">
+                      {detailModel.freeEndpoint
+                        ? 'VERIFIED FREE ENDPOINT'
+                        : 'MODEL PROFILE'}
+                    </span>
+                    <p>{detailModel.description}</p>
+                  </div>
+                </div>
+
+                {Boolean(detailModel.bestFor?.length) && (
+                  <section>
+                    <h4>Best for</h4>
+                    <div className="model-detail-tags">
+                      {detailModel.bestFor?.map((item) => (
+                        <span key={item}>{item}</span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                <section>
+                  <h4>Capabilities</h4>
+                  <div className="model-detail-tags">
+                    {detailModel.capabilities.map((capability) => (
+                      <span key={capability}>
+                        {capability.replaceAll('_', ' ')}
+                      </span>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="model-fact-grid">
+                  <div>
+                    <span>Provider model</span>
+                    <strong>
+                      {detailModel.providerModelId ?? detailModel.displayName}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Health</span>
+                    <strong>
+                      {detailModel.healthStatus?.replaceAll('_', ' ') ??
+                        (detailModel.available === false
+                          ? 'Unavailable'
+                          : 'Available')}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Access</span>
+                    <strong>
+                      {detailModel.freeEndpoint
+                        ? 'Verified free NVIDIA endpoint'
+                        : 'Plan dependent'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Source</span>
+                    <strong>
+                      {detailModel.source === 'NVIDIA_DISCOVERED'
+                        ? 'NVIDIA API discovery'
+                        : 'Vrompt registry'}
+                    </strong>
+                  </div>
+                </section>
+
+                {detailModel.quickFacts &&
+                  Object.keys(detailModel.quickFacts).length > 0 && (
+                    <section>
+                      <h4>Quick information</h4>
+                      <dl className="model-detail-list">
+                        {Object.entries(detailModel.quickFacts).map(
+                          ([key, value]) => (
+                            <div key={key}>
+                              <dt>{key.replaceAll(/([A-Z])/g, ' $1')}</dt>
+                              <dd>
+                                {typeof value === 'string' ||
+                                typeof value === 'number' ||
+                                typeof value === 'boolean'
+                                  ? String(value)
+                                  : JSON.stringify(value)}
+                              </dd>
+                            </div>
+                          ),
+                        )}
+                      </dl>
+                    </section>
+                  )}
+
+                {detailModel.details &&
+                  Object.keys(detailModel.details).length > 0 && (
+                    <section>
+                      <h4>Full details</h4>
+                      <dl className="model-detail-list">
+                        {Object.entries(detailModel.details).map(
+                          ([key, value]) => (
+                            <div key={key}>
+                              <dt>{key.replaceAll(/([A-Z])/g, ' $1')}</dt>
+                              <dd>
+                                {typeof value === 'string' ||
+                                typeof value === 'number' ||
+                                typeof value === 'boolean'
+                                  ? String(value)
+                                  : JSON.stringify(value)}
+                              </dd>
+                            </div>
+                          ),
+                        )}
+                      </dl>
+                    </section>
+                  )}
+
+                {detailModel.healthCheckedAt && (
+                  <p className="muted">
+                    Health last checked{' '}
+                    {new Date(detailModel.healthCheckedAt).toLocaleString()}.
+                    {detailModel.healthMessage
+                      ? ` ${detailModel.healthMessage}`
+                      : ''}
+                  </p>
+                )}
+
+                <button
+                  className="primary-button"
+                  onClick={() => {
+                    setDetailModel(null);
+                    begin(
+                      `/chat?model=${encodeURIComponent(detailModel.id)}`,
+                    );
+                  }}
+                >
+                  Use this model <Icon name="arrow" />
+                </button>
+              </div>
+            )}
+          </Modal>
+
           {loaded && !catalogError && !filtered.length && (
             <div className="service-notice">
               <p>

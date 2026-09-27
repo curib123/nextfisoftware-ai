@@ -16,6 +16,10 @@ import {
 } from './credits';
 import { ApiError, bodyJson, integerValue, json, routeId, stringValue, uuid } from './http';
 import { emptyUsage, ProviderFailure, streamProvider, type ProviderFile, type ProviderMessage } from './providers';
+import {
+  connectedProviderSet,
+  getUserProviderKey,
+} from './provider-credentials';
 import { rest, rpc, storageDelete, storageDownload, storageUpload } from './supabase';
 
 type ProjectRow = {
@@ -95,14 +99,22 @@ type RunRow = {
 };
 
 const modelSelect =
-  'id,provider,provider_model_id,display_name,description,capabilities,capability_states,reasoning_levels,default_reasoning_level,enabled,manual_available,auto_available,maintenance,quality_tier,routing_priority,routing_cost_score,input_price,cached_input_price,output_price,cache_write_input_price,image_max_cost_usd,credit_cost,max_context,max_output,currency';
+  'id,provider,provider_model_id,display_name,description,category,capabilities,capability_states,reasoning_levels,default_reasoning_level,enabled,manual_available,auto_available,maintenance,quality_tier,routing_priority,routing_cost_score,input_price,cached_input_price,output_price,cache_write_input_price,image_max_cost_usd,credit_cost,max_context,max_output,currency,best_for,quick_facts,details,free_endpoint,source,health_status,health_checked_at,last_success_at,last_failure_at,health_failure_count,health_message';
 
-function mapModel(model: DbModel, credits?: { chat: number | null; image_generation: number | null }) {
+function mapModel(
+  model: DbModel,
+  credits?: { chat: number | null; image_generation: number | null },
+  access?: { planAvailable?: boolean; byokAvailable?: boolean },
+) {
+  const providerHealthy =
+    model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY';
   return {
     id: model.id,
     provider: model.provider,
+    providerModelId: model.provider_model_id,
     displayName: model.display_name,
     description: model.description,
+    category: model.category,
     capabilities: model.capabilities,
     capabilityStates: model.capability_states ?? {},
     reasoningLevels: model.reasoning_levels,
@@ -110,7 +122,21 @@ function mapModel(model: DbModel, credits?: { chat: number | null; image_generat
     enabled: model.enabled,
     maintenance: model.maintenance,
     autoAvailable: model.auto_available,
-    available: model.enabled && !model.maintenance && providerConfigured(model.provider),
+    manualAvailable: model.manual_available,
+    available:
+      model.enabled &&
+      !model.maintenance &&
+      providerConfigured(model.provider) &&
+      providerHealthy,
+    bestFor: model.best_for ?? [],
+    quickFacts: model.quick_facts ?? {},
+    details: model.details ?? {},
+    freeEndpoint: model.free_endpoint,
+    source: model.source,
+    healthStatus: model.health_status,
+    healthCheckedAt: model.health_checked_at,
+    healthMessage: model.health_message,
+    ...(access ?? {}),
     ...(credits ? { creditCosts: credits } : {}),
   };
 }
@@ -186,36 +212,101 @@ export async function catalogModels() {
 }
 
 export async function workspaceModels(user: Authenticated) {
-  const { policies, models } = await configuration(user.profile.id);
+  const [{ policies, models }, connected] = await Promise.all([
+    configuration(user.profile.id),
+    connectedProviderSet(user.profile.id),
+  ]);
   const policyByModel = new Map(
-    policies.filter((policy) => policy.model_id).map((policy) => [policy.model_id!, policy]),
+    policies
+      .filter((policy) => policy.model_id)
+      .map((policy) => [policy.model_id!, policy]),
   );
   return models
     .filter((model) => {
       const policy = policyByModel.get(model.id);
-      return Boolean(
+      const providerHealthy =
+        model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY';
+      const planAvailable = Boolean(
         policy &&
           model.enabled &&
           model.manual_available &&
           !model.maintenance &&
-          providerConfigured(model.provider),
+          providerConfigured(model.provider) &&
+          providerHealthy,
       );
+      const byokAvailable = Boolean(
+        connected.has(model.provider) &&
+          model.enabled &&
+          model.manual_available &&
+          !model.maintenance,
+      );
+      return planAvailable || byokAvailable;
     })
     .map((model) => {
-      const policy = policyByModel.get(model.id)!;
-      return mapModel(model, {
-        chat: policy.allowed_features.includes('chat')
-          ? modelCredits(model, policy, 'chat')
-          : null,
-        image_generation: policy.allowed_features.includes('image_generation')
-          ? modelCredits(model, policy, 'image_generation')
-          : null,
-      });
+      const policy = policyByModel.get(model.id);
+      const providerHealthy =
+        model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY';
+      const planAvailable = Boolean(
+        policy &&
+          providerConfigured(model.provider) &&
+          providerHealthy,
+      );
+      const byokAvailable = connected.has(model.provider);
+      return mapModel(
+        model,
+        policy
+          ? {
+              chat: policy.allowed_features.includes('chat')
+                ? modelCredits(model, policy, 'chat')
+                : null,
+              image_generation: policy.allowed_features.includes('image_generation')
+                ? modelCredits(model, policy, 'image_generation')
+                : null,
+            }
+          : undefined,
+        { planAvailable, byokAvailable },
+      );
     });
 }
 
+function envLimit(name: string, fallback: number) {
+  const value = Number(process.env[name]);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function byokPolicy(): DbPolicy {
+  return {
+    id: 'BYOK',
+    plan_id: 'BYOK',
+    bucket: 'BYOK',
+    model_id: null,
+    enabled: true,
+    daily_limit: envLimit('BYOK_DAILY_LIMIT', 100),
+    monthly_limit: envLimit('BYOK_MONTHLY_LIMIT', 1000),
+    max_input_chars: envLimit('BYOK_MAX_INPUT_CHARS', 64000),
+    max_context: envLimit('BYOK_MAX_CONTEXT', 128000),
+    max_output: envLimit('BYOK_MAX_OUTPUT', 8192),
+    max_files: Math.min(envLimit('BYOK_MAX_FILES', 5), 10),
+    max_file_bytes: Math.min(
+      envLimit('BYOK_MAX_FILE_BYTES', 10_000_000),
+      20_000_000,
+    ),
+    max_duration_seconds: Math.min(
+      envLimit('BYOK_MAX_DURATION_SECONDS', 120),
+      600,
+    ),
+    concurrency: Math.min(envLimit('BYOK_CONCURRENCY', 2), 10),
+    rate_per_minute: Math.min(envLimit('BYOK_RATE_PER_MINUTE', 10), 120),
+    allowed_features: ['chat', 'image_generation'],
+    routing: {},
+  };
+}
+
 export async function workspaceUsage(user: Authenticated) {
-  const { plan, policies, models } = await configuration(user.profile.id);
+  const [{ plan, policies, models }, connected] = await Promise.all([
+    configuration(user.profile.id),
+    connectedProviderSet(user.profile.id),
+  ]);
   const counters = await rest<
     { bucket: string; period: string; period_start: string; used: number; reserved: number; extra: number }[]
   >('usage_counters', {
@@ -228,6 +319,19 @@ export async function workspaceUsage(user: Authenticated) {
     (row) => row.bucket === 'CREDITS' && row.period === 'MONTHLY' && same(row.period_start, p.month),
   );
   const creditLimit = Math.max(0, plan.monthly_credits + (credit?.extra ?? 0));
+  const byok = byokPolicy();
+  const byokDaily = counters.find(
+    (row) =>
+      row.bucket === 'BYOK' &&
+      row.period === 'DAILY' &&
+      same(row.period_start, p.day),
+  );
+  const byokMonthly = counters.find(
+    (row) =>
+      row.bucket === 'BYOK' &&
+      row.period === 'MONTHLY' &&
+      same(row.period_start, p.month),
+  );
   return {
     plan: plan.name,
     features: {
@@ -288,6 +392,27 @@ export async function workspaceUsage(user: Authenticated) {
         maxFileBytes: policy.max_file_bytes,
       };
     }),
+    byokAllowance: {
+      connectedProviders: [...connected],
+      allowedFeatures: byok.allowed_features,
+      dailyLimit: byok.daily_limit,
+      monthlyLimit: byok.monthly_limit,
+      dailyRemaining: Math.max(
+        0,
+        byok.daily_limit -
+          (byokDaily?.used ?? 0) -
+          (byokDaily?.reserved ?? 0),
+      ),
+      monthlyRemaining: Math.max(
+        0,
+        byok.monthly_limit -
+          (byokMonthly?.used ?? 0) -
+          (byokMonthly?.reserved ?? 0),
+      ),
+      maxFiles: byok.max_files,
+      maxFileBytes: byok.max_file_bytes,
+      creditCosts: { chat: 0, image_generation: 0 },
+    },
   };
 }
 
@@ -827,6 +952,40 @@ async function runWorkflow(request: Request, user: Authenticated, workflowId: st
   }
 }
 
+async function updateSharedNvidiaHealth(
+  model: DbModel,
+  healthy: boolean,
+  message: string,
+) {
+  if (
+    model.provider !== 'NVIDIA' ||
+    model.source !== 'NVIDIA_DISCOVERED'
+  )
+    return;
+
+  const now = new Date().toISOString();
+  await rest('ai_models', {
+    admin: true,
+    method: 'PATCH',
+    query: `id=eq.${encodeURIComponent(model.id)}`,
+    body: {
+      enabled: healthy,
+      manual_available: healthy,
+      auto_available: healthy,
+      free_endpoint: healthy,
+      health_status: healthy ? 'HEALTHY' : 'DEGRADED',
+      health_checked_at: now,
+      health_message: message,
+      health_failure_count: healthy
+        ? 0
+        : (model.health_failure_count ?? 0) + 1,
+      ...(healthy
+        ? { last_success_at: now }
+        : { last_failure_at: now }),
+    },
+  }).catch(() => {});
+}
+
 async function generateOnce(
   user: Authenticated,
   plan: DbPlan,
@@ -861,6 +1020,11 @@ async function generateOnce(
       { feature: 'chat' },
     );
     if (!output.trim()) throw new ProviderFailure('EMPTY_RESPONSE');
+    await updateSharedNvidiaHealth(
+      model,
+      true,
+      'A live generation completed successfully.',
+    );
     await rest('messages', {
       token: user.token,
       method: 'PATCH',
@@ -872,6 +1036,12 @@ async function generateOnce(
     await touchConversation(user, conversationId);
     return output;
   } catch (error) {
+    if (error instanceof ProviderFailure)
+      await updateSharedNvidiaHealth(
+        model,
+        false,
+        `Live generation failed: ${error.category}`,
+      );
     await rest('messages', {
       token: user.token,
       method: 'PATCH',
@@ -897,32 +1067,75 @@ export async function streamMessage(
   const requestId = uuid(input.requestId, 'Request ID');
   const feature: CreditFeature =
     input.feature === 'image_generation' ? 'image_generation' : 'chat';
-  const mode = input.mode === 'MANUAL' ? 'MANUAL' : 'AUTO';
-  const modelId = mode === 'MANUAL' ? uuid(input.modelId, 'Model ID') : null;
+  const mode =
+    input.mode === 'BYOK'
+      ? 'BYOK'
+      : input.mode === 'MANUAL'
+        ? 'MANUAL'
+        : 'AUTO';
+  const modelId = mode === 'AUTO' ? null : uuid(input.modelId, 'Model ID');
   const content = stringValue(input.content, 'Message', { min: 1, max: 64000 });
   const attachmentIds = Array.isArray(input.attachmentIds)
     ? input.attachmentIds.map((value) => uuid(value, 'Attachment ID'))
     : [];
   const cfg = await configuration(user.profile.id);
-  const policy = findPolicy(cfg.policies, mode, modelId);
+  let policy: DbPolicy;
+  let model: DbModel | undefined;
+  let userApiKey: string | undefined;
+
+  if (mode === 'BYOK') {
+    policy = byokPolicy();
+    model = cfg.models.find((item) => item.id === modelId);
+    if (!model || !model.enabled || model.maintenance || !model.manual_available)
+      throw new ApiError('This model is unavailable.', 404);
+    userApiKey =
+      (await getUserProviderKey(user.profile.id, model.provider)) ?? undefined;
+    if (!userApiKey)
+      throw new ApiError(
+        `Connect your ${model.provider} API key in Settings before using BYO mode.`,
+        403,
+      );
+  } else {
+    policy = findPolicy(cfg.policies, mode, modelId);
+    model = resolveModel(cfg.models, policy, mode, feature);
+  }
+
   if (!policy.allowed_features.includes(feature))
     throw new ApiError('This task is not included in the selected allowance.', 403);
   if (content.length > policy.max_input_chars)
-    throw new ApiError('This message is longer than the selected plan allows.', 413);
+    throw new ApiError('This message is longer than the selected allowance.', 413);
   if (attachmentIds.length > policy.max_files)
     throw new ApiError('Too many files are selected for this request.', 413);
 
-  const model = resolveModel(cfg.models, policy, mode, feature);
   if (!model) throw new ApiError('No configured model can safely handle this request.', 503);
+  if (
+    feature === 'image_generation' &&
+    !model.capabilities.includes('image_generation')
+  )
+    throw new ApiError('This model does not support image generation.', 403);
+
   const serverCredits =
-    mode === 'AUTO' ? autoCredits(policy, feature) : modelCredits(model, policy, feature);
-  if (!serverCredits) throw new ApiError('Pricing for this model is not configured safely.', 409);
-  const maxCredits = integerValue(input.maxCredits ?? serverCredits, 'Maximum credits', 1, 100000);
-  if (serverCredits > maxCredits)
-    throw new ApiError(
-      `This task now costs ${serverCredits} credits. Refresh usage before sending.`,
-      409,
+    mode === 'BYOK'
+      ? 0
+      : mode === 'AUTO'
+        ? autoCredits(policy, feature)
+        : modelCredits(model, policy, feature);
+  if (serverCredits === null || serverCredits === undefined)
+    throw new ApiError('Pricing for this model is not configured safely.', 409);
+
+  if (mode !== 'BYOK') {
+    const maxCredits = integerValue(
+      input.maxCredits ?? serverCredits,
+      'Maximum credits',
+      1,
+      100000,
     );
+    if (serverCredits > maxCredits)
+      throw new ApiError(
+        `This task now costs ${serverCredits} credits. Refresh usage before sending.`,
+        409,
+      );
+  }
 
   const files = await loadFiles(user, id, attachmentIds, policy, model);
   const fingerprint = createHash('sha256')
@@ -992,6 +1205,7 @@ export async function streamMessage(
             usage,
             {
               feature,
+              apiKey: userApiKey,
               image: async (mimeType, base64) => {
                 const bytes = Uint8Array.from(Buffer.from(base64, 'base64'));
                 if (bytes.byteLength > 10_000_000)
@@ -1024,7 +1238,14 @@ export async function streamMessage(
               },
             },
           );
-          if (!output.trim() && !generated) throw new ProviderFailure('EMPTY_RESPONSE');
+          if (!output.trim() && !generated)
+            throw new ProviderFailure('EMPTY_RESPONSE');
+          if (mode !== 'BYOK')
+            await updateSharedNvidiaHealth(
+              model,
+              true,
+              'A live generation completed successfully.',
+            );
           await rest('messages', {
             token: user.token,
             method: 'PATCH',
@@ -1041,6 +1262,7 @@ export async function streamMessage(
             providerMessages.map((item) => item.content).join('\n'),
             output,
             generated,
+            mode === 'BYOK',
           );
           await rpc('finalize_generation', {
             p_request_id: requestId,
@@ -1055,6 +1277,12 @@ export async function streamMessage(
             usage: await workspaceUsage(user),
           });
         } catch (error) {
+          if (mode !== 'BYOK' && error instanceof ProviderFailure)
+            await updateSharedNvidiaHealth(
+              model,
+              false,
+              `Live generation failed: ${error.category}`,
+            );
           await rest('messages', {
             token: user.token,
             method: 'PATCH',
@@ -1119,6 +1347,7 @@ function resolveModel(
     !model.enabled ||
     model.maintenance ||
     !providerConfigured(model.provider) ||
+    (model.provider === 'NVIDIA' && model.health_status !== 'HEALTHY') ||
     (feature === 'image_generation' && !model.capabilities.includes('image_generation'))
   )
     return undefined;
@@ -1199,6 +1428,7 @@ async function recordUsage(
   inputText: string,
   outputText: string,
   generatedImage: boolean,
+  userOwnedProviderCost = false,
 ) {
   const normalized = usage.reported
     ? usage
@@ -1207,13 +1437,17 @@ async function recordUsage(
         input: Math.ceil(inputText.length / 4),
         output: Math.ceil(outputText.length / 4),
       };
-  const estimatedCost = actualProviderCost(model, {
-    inputTokens: normalized.input,
-    cachedInputTokens: normalized.cached,
-    cacheWriteInputTokens: normalized.cacheWrite,
-    outputTokens: normalized.output,
-    imageCostUsd: generatedImage ? Number(model.image_max_cost_usd ?? 0) : 0,
-  });
+  const estimatedCost = userOwnedProviderCost
+    ? 0
+    : actualProviderCost(model, {
+        inputTokens: normalized.input,
+        cachedInputTokens: normalized.cached,
+        cacheWriteInputTokens: normalized.cacheWrite,
+        outputTokens: normalized.output,
+        imageCostUsd: generatedImage
+          ? Number(model.image_max_cost_usd ?? 0)
+          : 0,
+      });
   await rest('usage_records', {
     admin: true,
     method: 'POST',
@@ -1230,6 +1464,7 @@ async function recordUsage(
       credit_units: creditUnits,
       estimated_cost: estimatedCost,
       feature,
+      credential_mode: userOwnedProviderCost ? 'BYOK' : 'VROMPT',
     },
   });
 }
