@@ -4,7 +4,7 @@ export const PROVIDER_USD_PER_CREDIT = 0.008;
 
 export type DbModel = {
   id: string;
-  provider: 'OPENAI' | 'GOOGLE' | 'ANTHROPIC' | 'MISTRAL';
+  provider: 'OPENAI' | 'GOOGLE' | 'ANTHROPIC' | 'MISTRAL' | 'NVIDIA';
   provider_model_id: string;
   display_name: string;
   description: string;
@@ -28,6 +28,17 @@ export type DbModel = {
   max_context: number;
   max_output: number;
   currency: string;
+  best_for: string[];
+  quick_facts: Record<string, unknown>;
+  details: Record<string, unknown>;
+  free_endpoint: boolean;
+  source: 'MANUAL' | 'NVIDIA_DISCOVERED';
+  health_status: 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'NOT_CONFIGURED';
+  health_checked_at: string | null;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  health_failure_count: number;
+  health_message: string | null;
 };
 
 export type DbPlan = {
@@ -124,6 +135,7 @@ export function providerConfigured(provider: DbModel['provider']) {
         GOOGLE: process.env.GOOGLE_AI_API_KEY,
         ANTHROPIC: process.env.ANTHROPIC_API_KEY,
         MISTRAL: process.env.MISTRAL_API_KEY,
+        NVIDIA: process.env.NVIDIA_API_KEY,
       } as const
     )[provider]?.trim(),
   );
@@ -161,6 +173,7 @@ export function chooseAutoModel(
         model.auto_available &&
         !model.maintenance &&
         providerConfigured(model.provider) &&
+        (model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY') &&
         requestCostBound(model, policy) <= budget + 1e-10,
     )
     .sort(
