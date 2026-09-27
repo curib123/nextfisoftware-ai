@@ -159,11 +159,11 @@ async function configuration(userId: string) {
   const [policies, models] = await Promise.all([
     rest<DbPolicy[]>('generation_policies', {
       admin: true,
-      query: \`plan_id=eq.\${encodeURIComponent(plan.id)}&enabled=eq.true&select=*&order=bucket.asc\`,
+      query: `plan_id=eq.${encodeURIComponent(plan.id)}&enabled=eq.true&select=*&order=bucket.asc`,
     }),
     rest<DbModel[]>('ai_models', {
       admin: true,
-      query: \`select=\${modelSelect}\`,
+      query: `select=${modelSelect}`,
     }),
   ]);
   return { plan, policies, models };
@@ -180,7 +180,7 @@ function periods(now = new Date()) {
 
 export async function catalogModels() {
   const models = await rest<DbModel[]>('ai_models', {
-    query: \`select=\${modelSelect}&enabled=eq.true&maintenance=eq.false&order=display_order.asc\`,
+    query: `select=${modelSelect}&enabled=eq.true&maintenance=eq.false&order=display_order.asc`,
   });
   return models.map((model) => mapModel(model));
 }
@@ -220,7 +220,7 @@ export async function workspaceUsage(user: Authenticated) {
     { bucket: string; period: string; period_start: string; used: number; reserved: number; extra: number }[]
   >('usage_counters', {
     admin: true,
-    query: \`user_id=eq.\${encodeURIComponent(user.profile.id)}&select=bucket,period,period_start,used,reserved,extra\`,
+    query: `user_id=eq.${encodeURIComponent(user.profile.id)}&select=bucket,period,period_start,used,reserved,extra`,
   });
   const p = periods();
   const same = (value: string, epoch: number) => new Date(value).getTime() === epoch;
@@ -297,7 +297,7 @@ export async function preferences(request: Request, user: Authenticated) {
       { display_name: string; send_on_enter: boolean }[]
     >('user_preferences', {
       token: user.token,
-      query: \`user_id=eq.\${encodeURIComponent(user.profile.id)}&select=display_name,send_on_enter\`,
+      query: `user_id=eq.${encodeURIComponent(user.profile.id)}&select=display_name,send_on_enter`,
     });
     const value = rows[0] ?? { display_name: user.profile.username, send_on_enter: true };
     return { displayName: value.display_name || user.profile.username, defaultModelId: null, sendOnEnter: value.send_on_enter };
@@ -354,21 +354,21 @@ export async function projectsRoute(
   if (request.method === 'GET') {
     const rows = await rest<ProjectRow[]>('projects', {
       token: user.token,
-      query: \`id=eq.\${encodeURIComponent(projectId)}&select=*\`,
+      query: `id=eq.${encodeURIComponent(projectId)}&select=*`,
     });
     if (!rows[0]) throw new ApiError('Project not found.', 404);
     const [conversations, prompts, files] = await Promise.all([
       rest<ConversationRow[]>('conversations', {
         token: user.token,
-        query: \`project_id=eq.\${encodeURIComponent(projectId)}&select=*&order=updated_at.desc\`,
+        query: `project_id=eq.${encodeURIComponent(projectId)}&select=*&order=updated_at.desc`,
       }),
       rest<PromptRow[]>('saved_prompts', {
         token: user.token,
-        query: \`project_id=eq.\${encodeURIComponent(projectId)}&select=*\`,
+        query: `project_id=eq.${encodeURIComponent(projectId)}&select=*`,
       }),
       rest<AttachmentRow[]>('attachments', {
         token: user.token,
-        query: \`select=*&order=created_at.desc\`,
+        query: `select=*&order=created_at.desc`,
       }),
     ]);
     const conversationIds = new Set(conversations.map((row) => row.id));
@@ -386,7 +386,7 @@ export async function projectsRoute(
     const rows = await rest<ProjectRow[]>('projects', {
       token: user.token,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(projectId)}\`,
+      query: `id=eq.${encodeURIComponent(projectId)}`,
       prefer: 'return=representation',
       body: projectInput(input, plan),
     });
@@ -397,7 +397,7 @@ export async function projectsRoute(
     await rest('projects', {
       token: user.token,
       method: 'DELETE',
-      query: \`id=eq.\${encodeURIComponent(projectId)}\`,
+      query: `id=eq.${encodeURIComponent(projectId)}`,
     });
     return { deleted: true, id: projectId };
   }
@@ -428,10 +428,10 @@ export async function conversationsRoute(
 ) {
   if (!id && request.method === 'GET') {
     const q = new URL(request.url).searchParams.get('q')?.trim() ?? '';
-    const filter = q ? \`&title=ilike.\${encodeURIComponent(\`*\${q.replaceAll('*', '')}*\`)}\` : '';
+    const filter = q ? `&title=ilike.${encodeURIComponent(`*${q.replaceAll('*', '')}*`)}` : '';
     const rows = await rest<ConversationRow[]>('conversations', {
       token: user.token,
-      query: \`select=*&order=updated_at.desc\${filter}\`,
+      query: `select=*&order=updated_at.desc${filter}`,
     });
     return rows.map(mapConversation);
   }
@@ -463,7 +463,7 @@ export async function conversationsRoute(
     const rows = await rest<ConversationRow[]>('conversations', {
       token: user.token,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(conversationId)}\`,
+      query: `id=eq.${encodeURIComponent(conversationId)}`,
       prefer: 'return=representation',
       body: patch,
     });
@@ -473,13 +473,13 @@ export async function conversationsRoute(
   if (request.method === 'DELETE') {
     const files = await rest<AttachmentRow[]>('attachments', {
       token: user.token,
-      query: \`conversation_id=eq.\${encodeURIComponent(conversationId)}&select=*\`,
+      query: `conversation_id=eq.${encodeURIComponent(conversationId)}&select=*`,
     });
     await Promise.allSettled(files.map((file) => storageDelete(file.storage_path)));
     await rest('conversations', {
       token: user.token,
       method: 'DELETE',
-      query: \`id=eq.\${encodeURIComponent(conversationId)}\`,
+      query: `id=eq.${encodeURIComponent(conversationId)}`,
     });
     return { deleted: true, id: conversationId };
   }
@@ -489,17 +489,17 @@ export async function conversationsRoute(
 async function conversationDetail(user: Authenticated, conversationId: string) {
   const rows = await rest<ConversationRow[]>('conversations', {
     token: user.token,
-    query: \`id=eq.\${encodeURIComponent(conversationId)}&select=*\`,
+    query: `id=eq.${encodeURIComponent(conversationId)}&select=*`,
   });
   if (!rows[0]) throw new ApiError('Conversation not found.', 404);
   const [messages, attachments] = await Promise.all([
     rest<MessageRow[]>('messages', {
       token: user.token,
-      query: \`conversation_id=eq.\${encodeURIComponent(conversationId)}&select=*&order=created_at.asc\`,
+      query: `conversation_id=eq.${encodeURIComponent(conversationId)}&select=*&order=created_at.asc`,
     }),
     rest<AttachmentRow[]>('attachments', {
       token: user.token,
-      query: \`conversation_id=eq.\${encodeURIComponent(conversationId)}&select=*&order=created_at.asc\`,
+      query: `conversation_id=eq.${encodeURIComponent(conversationId)}&select=*&order=created_at.asc`,
     }),
   ]);
   return {
@@ -551,7 +551,7 @@ export async function promptsRoute(
     const rows = await rest<PromptRow[]>('saved_prompts', {
       token: user.token,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(promptId)}\`,
+      query: `id=eq.${encodeURIComponent(promptId)}`,
       prefer: 'return=representation',
       body: {
         title: stringValue(input.title, 'Prompt name', { min: 1, max: 160 }),
@@ -565,7 +565,7 @@ export async function promptsRoute(
     await rest('saved_prompts', {
       token: user.token,
       method: 'DELETE',
-      query: \`id=eq.\${encodeURIComponent(promptId)}\`,
+      query: `id=eq.${encodeURIComponent(promptId)}`,
     });
     return { deleted: true, id: promptId };
   }
@@ -580,7 +580,7 @@ export async function fileRoute(
   const id = routeId(fileId, 'File ID');
   const rows = await rest<AttachmentRow[]>('attachments', {
     token: user.token,
-    query: \`id=eq.\${encodeURIComponent(id)}&select=*\`,
+    query: `id=eq.${encodeURIComponent(id)}&select=*`,
   });
   const file = rows[0];
   if (!file) throw new ApiError('File not found.', 404);
@@ -591,7 +591,7 @@ export async function fileRoute(
       headers: {
         'content-type': file.mime_type,
         'content-length': String(file.size_bytes),
-        'content-disposition': \`inline; filename="\${file.name.replaceAll('"', '')}"\`,
+        'content-disposition': `inline; filename="${file.name.replaceAll('"', '')}"`,
         'cache-control': 'private, no-store',
       },
     });
@@ -601,7 +601,7 @@ export async function fileRoute(
     await rest('attachments', {
       token: user.token,
       method: 'DELETE',
-      query: \`id=eq.\${encodeURIComponent(id)}\`,
+      query: `id=eq.${encodeURIComponent(id)}`,
     });
     return json({ deleted: true, id });
   }
@@ -636,7 +636,7 @@ export async function uploadFile(
     throw new ApiError('Only text, PDF, and image files are supported.', 415);
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
-  const storagePath = \`\${user.profile.id}/\${id}/\${randomUUID()}-\${safeName}\`;
+  const storagePath = `${user.profile.id}/${id}/${randomUUID()}-${safeName}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
   await storageUpload(storagePath, bytes, mime);
   try {
@@ -698,7 +698,7 @@ export async function workflowsRoute(
     if (request.method === 'GET') {
       const rows = await rest<RunRow[]>('workflow_runs', {
         token: user.token,
-        query: \`workflow_id=eq.\${encodeURIComponent(workflowId)}&select=*&order=created_at.desc&limit=50\`,
+        query: `workflow_id=eq.${encodeURIComponent(workflowId)}&select=*&order=created_at.desc&limit=50`,
       });
       return rows.map(mapRun);
     }
@@ -710,7 +710,7 @@ export async function workflowsRoute(
     const rows = await rest<WorkflowRow[]>('workflows', {
       token: user.token,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(workflowId)}\`,
+      query: `id=eq.${encodeURIComponent(workflowId)}`,
       prefer: 'return=representation',
       body: data,
     });
@@ -721,7 +721,7 @@ export async function workflowsRoute(
     await rest('workflows', {
       token: user.token,
       method: 'DELETE',
-      query: \`id=eq.\${encodeURIComponent(workflowId)}\`,
+      query: `id=eq.${encodeURIComponent(workflowId)}`,
     });
     return { deleted: true, id: workflowId };
   }
@@ -733,13 +733,13 @@ async function workflowInput(input: Record<string, unknown>, user: Authenticated
   await ownedProject(user, projectId);
   const rawSteps = Array.isArray(input.steps) ? input.steps : [];
   if (!rawSteps.length || rawSteps.length > plan.max_workflow_steps)
-    throw new ApiError(\`A workflow must have 1 to \${plan.max_workflow_steps} steps.\`);
+    throw new ApiError(`A workflow must have 1 to ${plan.max_workflow_steps} steps.`);
   const steps = rawSteps.map((value, index) => {
-    if (!value || typeof value !== 'object') throw new ApiError(\`Step \${index + 1} is invalid.\`);
+    if (!value || typeof value !== 'object') throw new ApiError(`Step ${index + 1} is invalid.`);
     const step = value as Record<string, unknown>;
     return {
-      name: stringValue(step.name, \`Step \${index + 1} name\`, { min: 1, max: 120 }),
-      prompt: stringValue(step.prompt, \`Step \${index + 1} instructions\`, { min: 1, max: 8000 }),
+      name: stringValue(step.name, `Step ${index + 1} name`, { min: 1, max: 120 }),
+      prompt: stringValue(step.prompt, `Step ${index + 1} instructions`, { min: 1, max: 8000 }),
       modelId: step.modelId ? uuid(step.modelId, 'Model ID') : null,
     };
   });
@@ -757,7 +757,7 @@ async function runWorkflow(request: Request, user: Authenticated, workflowId: st
   const initial = stringValue(input.input ?? '', 'Workflow input', { min: 1, max: 32000 });
   const rows = await rest<WorkflowRow[]>('workflows', {
     token: user.token,
-    query: \`id=eq.\${encodeURIComponent(workflowId)}&select=*\`,
+    query: `id=eq.${encodeURIComponent(workflowId)}&select=*`,
   });
   const workflow = rows[0];
   if (!workflow || !workflow.enabled) throw new ApiError('Workflow is unavailable.', 404);
@@ -770,7 +770,7 @@ async function runWorkflow(request: Request, user: Authenticated, workflowId: st
     body: {
       user_id: user.profile.id,
       project_id: workflow.project_id,
-      title: \`\${workflow.name} run\`.slice(0, 160),
+      title: `${workflow.name} run`.slice(0, 160),
     },
   });
   const conversation = conversations[0]!;
@@ -795,20 +795,20 @@ async function runWorkflow(request: Request, user: Authenticated, workflowId: st
     for (const step of workflow.steps) {
       const policy = findPolicy(cfg.policies, step.modelId ? 'MANUAL' : 'AUTO', step.modelId);
       const model = resolveModel(cfg.models, policy, step.modelId ? 'MANUAL' : 'AUTO', 'chat');
-      const prompt = \`\${step.prompt}\n\nInput:\n\${value}\`;
+      const prompt = `${step.prompt}\n\nInput:\n${value}`;
       value = await generateOnce(user, cfg.plan, policy, model, conversation.id, prompt, system);
       completed += 1;
       await rest('workflow_runs', {
         token: user.token,
         method: 'PATCH',
-        query: \`id=eq.\${encodeURIComponent(run.id)}\`,
+        query: `id=eq.${encodeURIComponent(run.id)}`,
         body: { completed_steps: completed },
       });
     }
     const updated = await rest<RunRow[]>('workflow_runs', {
       token: user.token,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(run.id)}\`,
+      query: `id=eq.${encodeURIComponent(run.id)}`,
       prefer: 'return=representation',
       body: { status: 'SUCCEEDED', completed_steps: completed, finished_at: new Date().toISOString() },
     });
@@ -818,7 +818,7 @@ async function runWorkflow(request: Request, user: Authenticated, workflowId: st
     const updated = await rest<RunRow[]>('workflow_runs', {
       token: user.token,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(run.id)}\`,
+      query: `id=eq.${encodeURIComponent(run.id)}`,
       prefer: 'return=representation',
       body: { status: 'FAILED', completed_steps: completed, error: message.slice(0, 500), finished_at: new Date().toISOString() },
     });
@@ -863,7 +863,7 @@ async function generateOnce(
     await rest('messages', {
       token: user.token,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(assistant.id)}\`,
+      query: `id=eq.${encodeURIComponent(assistant.id)}`,
       body: { content: output, status: 'SUCCEEDED' },
     });
     await recordUsage(user.profile.id, requestId, model, usage, creditUnits, 'chat', prompt, output, false);
@@ -874,7 +874,7 @@ async function generateOnce(
     await rest('messages', {
       token: user.token,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(assistant.id)}\`,
+      query: `id=eq.${encodeURIComponent(assistant.id)}`,
       body: { content: output, status: 'FAILED' },
     }).catch(() => {});
     await rpc('finalize_generation', { p_request_id: requestId, p_status: 'FAILED', p_consume: true }).catch(() => {});
@@ -919,7 +919,7 @@ export async function streamMessage(
   const maxCredits = integerValue(input.maxCredits ?? serverCredits, 'Maximum credits', 1, 100000);
   if (serverCredits > maxCredits)
     throw new ApiError(
-      \`This task now costs \${serverCredits} credits. Refresh usage before sending.\`,
+      `This task now costs ${serverCredits} credits. Refresh usage before sending.`,
       409,
     );
 
@@ -945,7 +945,7 @@ export async function streamMessage(
 
   const history = await rest<MessageRow[]>('messages', {
     token: user.token,
-    query: \`conversation_id=eq.\${encodeURIComponent(id)}&select=*&order=created_at.asc&limit=40\`,
+    query: `conversation_id=eq.${encodeURIComponent(id)}&select=*&order=created_at.asc&limit=40`,
   });
   const project = conversation.project_id ? await ownedProject(user, conversation.project_id) : null;
   const system = project ? projectSystem(project, cfg.plan) : '';
@@ -963,7 +963,7 @@ export async function streamMessage(
     start(controller) {
       const push = (event: unknown) => {
         try {
-          controller.enqueue(encoder.encode(\`data: \${JSON.stringify(event)}\n\n\`));
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         } catch {
           // Client disconnected.
         }
@@ -996,7 +996,7 @@ export async function streamMessage(
                 if (bytes.byteLength > 10_000_000)
                   throw new ProviderFailure('OUTPUT_LIMIT', false);
                 const ext = mimeType.includes('jpeg') ? 'jpg' : mimeType.includes('webp') ? 'webp' : 'png';
-                const storagePath = \`\${user.profile.id}/\${id}/generated-\${randomUUID()}.\${ext}\`;
+                const storagePath = `${user.profile.id}/${id}/generated-${randomUUID()}.${ext}`;
                 await storageUpload(storagePath, bytes, mimeType);
                 try {
                   const rows = await rest<AttachmentRow[]>('attachments', {
@@ -1007,7 +1007,7 @@ export async function streamMessage(
                       user_id: user.profile.id,
                       conversation_id: id,
                       message_id: assistant.id,
-                      name: \`vrompt-image.\${ext}\`,
+                      name: `vrompt-image.${ext}`,
                       mime_type: mimeType,
                       size_bytes: bytes.byteLength,
                       storage_path: storagePath,
@@ -1027,7 +1027,7 @@ export async function streamMessage(
           await rest('messages', {
             token: user.token,
             method: 'PATCH',
-            query: \`id=eq.\${encodeURIComponent(assistant.id)}\`,
+            query: `id=eq.${encodeURIComponent(assistant.id)}`,
             body: { content: output, status: 'SUCCEEDED' },
           });
           await recordUsage(
@@ -1057,7 +1057,7 @@ export async function streamMessage(
           await rest('messages', {
             token: user.token,
             method: 'PATCH',
-            query: \`id=eq.\${encodeURIComponent(assistant.id)}\`,
+            query: `id=eq.${encodeURIComponent(assistant.id)}`,
             body: { content: output, status: 'FAILED' },
           }).catch(() => {});
           await rpc('finalize_generation', {
@@ -1243,7 +1243,7 @@ async function loadFiles(
   if (!ids.length) return [];
   const rows = await rest<AttachmentRow[]>('attachments', {
     token: user.token,
-    query: \`conversation_id=eq.\${encodeURIComponent(conversationId)}&select=*\`,
+    query: `conversation_id=eq.${encodeURIComponent(conversationId)}&select=*`,
   });
   const wanted = rows.filter((row) => ids.includes(row.id) && row.kind === 'upload');
   if (wanted.length !== ids.length) throw new ApiError('One or more selected files are unavailable.', 404);
@@ -1269,7 +1269,7 @@ async function loadFiles(
 async function ownedProject(user: Authenticated, id: string) {
   const rows = await rest<ProjectRow[]>('projects', {
     token: user.token,
-    query: \`id=eq.\${encodeURIComponent(id)}&select=*\`,
+    query: `id=eq.${encodeURIComponent(id)}&select=*`,
   });
   if (!rows[0]) throw new ApiError('Project not found.', 404);
   return rows[0];
@@ -1278,7 +1278,7 @@ async function ownedProject(user: Authenticated, id: string) {
 async function ownedConversation(user: Authenticated, id: string) {
   const rows = await rest<ConversationRow[]>('conversations', {
     token: user.token,
-    query: \`id=eq.\${encodeURIComponent(id)}&select=*\`,
+    query: `id=eq.${encodeURIComponent(id)}&select=*`,
   });
   if (!rows[0]) throw new ApiError('Conversation not found.', 404);
   return rows[0];
@@ -1287,8 +1287,8 @@ async function ownedConversation(user: Authenticated, id: string) {
 function projectSystem(project: ProjectRow, plan: DbPlan) {
   const context = project.context.slice(0, plan.project_context_chars);
   return [
-    project.instructions ? \`Project instructions:\n\${project.instructions}\` : '',
-    context ? \`Project reference context:\n\${context}\` : '',
+    project.instructions ? `Project instructions:\n${project.instructions}` : '',
+    context ? `Project reference context:\n${context}` : '',
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -1298,7 +1298,7 @@ async function touchConversation(user: Authenticated, id: string) {
   await rest('conversations', {
     token: user.token,
     method: 'PATCH',
-    query: \`id=eq.\${encodeURIComponent(id)}\`,
+    query: `id=eq.${encodeURIComponent(id)}`,
     body: { updated_at: new Date().toISOString() },
   });
 }
