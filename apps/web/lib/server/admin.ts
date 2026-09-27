@@ -5,6 +5,7 @@ import type { DbModel, DbPlan, DbPolicy } from './credits';
 import { PROVIDER_USD_PER_CREDIT } from './credits';
 import { audit } from './billing';
 import { ApiError, bodyJson, integerValue, stringValue, routeId } from './http';
+import { syncNvidiaFreeModels } from './nvidia';
 import { authAdminJson, rest, supabaseFetch } from './supabase';
 
 type Profile = {
@@ -171,6 +172,8 @@ export async function handleAdmin(
       return workspaceConfiguration();
     if (item === 'models')
       return modelMutation(request, actor, id);
+    if (item === 'nvidia-sync')
+      return syncNvidiaFreeModels(request);
     if (item === 'policies')
       return policyMutation(request, actor);
   }
