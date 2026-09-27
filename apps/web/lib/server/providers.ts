@@ -710,7 +710,9 @@ export async function probeProviderCredential(
         });
         break;
     }
-    return healthFromResponse(response);
+    const result = healthFromResponse(response);
+    await response.body?.cancel().catch(() => {});
+    return result;
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError')
       return { status: 'DEGRADED', message: 'Provider health check timed out.' };
