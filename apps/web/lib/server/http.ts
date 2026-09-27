@@ -37,12 +37,12 @@ export function stringValue(
   options: { min?: number; max?: number; optional?: boolean } = {},
 ) {
   if (options.optional && (value === undefined || value === null)) return '';
-  if (typeof value !== 'string') throw new ApiError(\`\${name} must be text.\`);
+  if (typeof value !== 'string') throw new ApiError(`${name} must be text.`);
   const text = value.trim();
   if (options.min !== undefined && text.length < options.min)
-    throw new ApiError(\`\${name} is too short.\`);
+    throw new ApiError(`${name} is too short.`);
   if (options.max !== undefined && text.length > options.max)
-    throw new ApiError(\`\${name} is too long.\`);
+    throw new ApiError(`${name} is too long.`);
   return text;
 }
 
@@ -54,14 +54,14 @@ export function integerValue(
 ) {
   const number = Number(value);
   if (!Number.isInteger(number) || number < min || number > max)
-    throw new ApiError(\`\${name} is invalid.\`);
+    throw new ApiError(`${name} is invalid.`);
   return number;
 }
 
 export function uuid(value: unknown, name = 'ID') {
   const text = stringValue(value, name);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text))
-    throw new ApiError(\`\${name} is invalid.\`);
+    throw new ApiError(`${name} is invalid.`);
   return text;
 }
 
