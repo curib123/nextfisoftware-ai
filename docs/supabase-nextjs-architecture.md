@@ -96,7 +96,7 @@ with `supabase/migrations`.
 
 The current migration head is:
 
-`supabase/migrations/20260927190504_nvidia_free_byok_model_metadata.sql`
+`supabase/migrations/20260927230733_release_failed_generation_credits.sql`
 
 Fresh environments must apply the complete migration chain in order.
 

@@ -18,7 +18,7 @@ NestJS, Prisma, Redis, Docker, Nginx, and the self-hosted PostgreSQL runtime hav
 ## Development
 
 1. Use the dedicated Vrompt Supabase project `ytzjrztxmnhqtokycenw`.
-2. The hosted schema is already provisioned through `supabase/migrations/20260927190504_nvidia_free_byok_model_metadata.sql`. For a fresh environment, apply the tracked migrations in order rather than only the original baseline.
+2. The hosted schema is already provisioned through `supabase/migrations/20260927230733_release_failed_generation_credits.sql`. For a fresh environment, apply the tracked migrations in order rather than only the original baseline.
 3. Copy `.env.example` to `.env`. The project URL and publishable key are prefilled; add the server-only `SUPABASE_SECRET_KEY` from the Vrompt project's API Keys settings.
 4. Add `NVIDIA_API_KEY` to discover and verify NVIDIA hosted developer endpoints for the Free plan; keep `MISTRAL_API_KEY` as the Free fallback.
 5. Add `VROMPT_CREDENTIAL_ENCRYPTION_KEY` if users should be able to save their own provider API keys.

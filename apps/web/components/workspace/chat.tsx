@@ -296,6 +296,12 @@ export function Chat() {
   useEffect(() => {
     if (messages.length) bottom.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+  useEffect(() => {
+    const element = composer.current;
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${Math.min(Math.max(element.scrollHeight, 72), 220)}px`;
+  }, [text]);
   useEffect(() => () => abort.current?.abort(), []);
   async function ensureConversation() {
     if (id) return id;
@@ -765,6 +771,8 @@ export function Chat() {
           ))}
           <textarea
             ref={composer}
+            className="composer-input"
+            rows={1}
             aria-label="Message"
             aria-describedby="composer-status"
             placeholder={

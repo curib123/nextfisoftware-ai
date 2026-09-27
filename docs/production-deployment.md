@@ -34,7 +34,7 @@ Use the dedicated Vrompt project:
 
 The current production migration head is tracked as:
 
-`supabase/migrations/20260927190504_nvidia_free_byok_model_metadata.sql`
+`supabase/migrations/20260927230733_release_failed_generation_credits.sql`
 
 Fresh Supabase projects must apply the complete migration chain in order.
 

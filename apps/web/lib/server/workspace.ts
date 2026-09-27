@@ -1054,7 +1054,11 @@ async function generateOnce(
       query: `id=eq.${encodeURIComponent(assistant.id)}`,
       body: { content: output, status: 'FAILED' },
     }).catch(() => {});
-    await rpc('finalize_generation', { p_request_id: requestId, p_status: 'FAILED', p_consume: true }).catch(() => {});
+    await rpc('finalize_generation', {
+      p_request_id: requestId,
+      p_status: 'FAILED',
+      p_consume: false,
+    }).catch(() => {});
     throw error;
   } finally {
     clearTimeout(timer);
@@ -1316,8 +1320,11 @@ export async function streamMessage(
           }).catch(() => {});
           await rpc('finalize_generation', {
             p_request_id: requestId,
-            p_status: error instanceof DOMException && error.name === 'AbortError' ? 'INTERRUPTED' : 'FAILED',
-            p_consume: true,
+            p_status:
+              error instanceof DOMException && error.name === 'AbortError'
+                ? 'INTERRUPTED'
+                : 'FAILED',
+            p_consume: false,
           }).catch(() => {});
           push({
             type: 'error',
