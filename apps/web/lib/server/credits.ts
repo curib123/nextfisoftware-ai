@@ -8,7 +8,7 @@ export type DbModel = {
   provider_model_id: string;
   display_name: string;
   description: string;
-  category: string;
+  category?: string;
   capabilities: string[];
   capability_states: Record<string, string> | null;
   reasoning_levels: string[];
@@ -29,17 +29,17 @@ export type DbModel = {
   max_context: number;
   max_output: number;
   currency: string;
-  best_for: string[];
-  quick_facts: Record<string, unknown>;
-  details: Record<string, unknown>;
-  free_endpoint: boolean;
-  source: 'MANUAL' | 'NVIDIA_DISCOVERED';
-  health_status: 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'NOT_CONFIGURED';
-  health_checked_at: string | null;
-  last_success_at: string | null;
-  last_failure_at: string | null;
-  health_failure_count: number;
-  health_message: string | null;
+  best_for?: string[];
+  quick_facts?: Record<string, unknown>;
+  details?: Record<string, unknown>;
+  free_endpoint?: boolean;
+  source?: 'MANUAL' | 'NVIDIA_DISCOVERED';
+  health_status?: 'UNKNOWN' | 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'NOT_CONFIGURED';
+  health_checked_at?: string | null;
+  last_success_at?: string | null;
+  last_failure_at?: string | null;
+  health_failure_count?: number;
+  health_message?: string | null;
 };
 
 export type DbPlan = {
