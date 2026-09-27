@@ -16,9 +16,9 @@ NestJS, Prisma, Redis, and the self-hosted PostgreSQL runtime have been removed.
 
 ## Development
 
-1. Create a dedicated Vrompt Supabase project.
-2. Apply `supabase/migrations/20260927000000_nextjs_fullstack.sql`.
-3. Copy `.env.example` to `.env` and add the Vrompt Supabase URL/keys.
+1. Use the dedicated Vrompt Supabase project `ytzjrztxmnhqtokycenw`.
+2. The hosted schema is already provisioned from `supabase/migrations/20260927000000_nextjs_fullstack.sql`; apply that file only when creating a fresh environment.
+3. Copy `.env.example` to `.env`. The project URL and publishable key are prefilled; add the server-only `SUPABASE_SECRET_KEY` from the Vrompt project's API Keys settings.
 4. Configure any AI provider keys you want to enable.
 5. Run:
 
@@ -31,7 +31,7 @@ Open http://localhost:3000, or http://localhost:3100 when using Docker Compose.
 
 ## Security
 
-- Browser traffic uses same-origin `/api/v1` routes; Supabase keys and AI/payment secrets stay server-side.
+- Browser traffic uses same-origin `/api/v1` routes. The Supabase publishable key may be exposed by design, while the Supabase secret key and all AI/payment secrets remain server-only.
 - Every exposed public table has RLS.
 - Users cannot update the authorization-bearing `profiles.role` or `profiles.status` columns directly.
 - Billing, quota, audit, and cost ledgers are server-only.
@@ -57,4 +57,4 @@ Auto mode uses economical models; premium/manual models consume more credits acc
 
 See `docs/production-deployment.md` and `docs/supabase-nextjs-architecture.md`.
 
-The connected Supabase project must be dedicated to Vrompt. Do not apply the migration to another app's database.
+The production Supabase project is `ytzjrztxmnhqtokycenw` (Vrompt). Do not apply the migration to the Nextfi project or another app's database.
