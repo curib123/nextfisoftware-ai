@@ -75,6 +75,27 @@ type MistralPart =
   | { type: 'image_url'; image_url: { url: string } };
 type MistralInput = { role: string; content: string | MistralPart[] };
 
+const MAX_PROVIDER_ATTEMPTS = 3;
+
+function retryDelay(response: Response, attempt: number) {
+  const retryAfter = Number(response.headers.get('retry-after'));
+  if (Number.isFinite(retryAfter) && retryAfter >= 0)
+    return Math.min(retryAfter * 1000, 30_000);
+  return Math.min(1000 * 2 ** attempt, 8_000);
+}
+
+function waitForRetry(milliseconds: number, signal: AbortSignal) {
+  if (milliseconds <= 0) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, milliseconds);
+    const abort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('The request was aborted.', 'AbortError'));
+    };
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
+
 export class ProviderFailure extends Error {
   constructor(
     public readonly category: string,
@@ -102,22 +123,32 @@ async function request(
   body: unknown,
   signal: AbortSignal,
 ) {
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-    signal,
-    redirect: 'error',
-  });
-  if (!response.ok) {
+  for (let attempt = 0; attempt < MAX_PROVIDER_ATTEMPTS; attempt += 1) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+      signal,
+      redirect: 'error',
+    });
+    if (response.ok) {
+      if (!response.body) throw new ProviderFailure('EMPTY_STREAM');
+      return response.body;
+    }
+
+    const retryable =
+      response.status === 408 || response.status === 429 || response.status >= 500;
+    if (retryable && attempt < MAX_PROVIDER_ATTEMPTS - 1) {
+      const delay = retryDelay(response, attempt);
+      await response.body?.cancel();
+      await waitForRetry(delay, signal);
+      continue;
+    }
+
     await response.body?.cancel();
-    throw new ProviderFailure(
-      `HTTP_${response.status}`,
-      response.status === 408 || response.status === 429 || response.status >= 500,
-    );
+    throw new ProviderFailure(`HTTP_${response.status}`, retryable);
   }
-  if (!response.body) throw new ProviderFailure('EMPTY_STREAM');
-  return response.body;
+  throw new ProviderFailure('RETRY_EXHAUSTED');
 }
 
 async function* readEvents(body: ReadableStream<Uint8Array>) {

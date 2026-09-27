@@ -123,6 +123,14 @@ export function siteOrigin(request?: NextRequest | Request) {
   return 'http://localhost:3000';
 }
 
+export function isOAuthCallbackStateValid(
+  callbackState: string,
+  expectedState: string,
+) {
+  return Boolean(expectedState) &&
+    (!callbackState || callbackState === expectedState);
+}
+
 export function safeReturnPath(value: string | null | undefined) {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return '/chat';
   try {

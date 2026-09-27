@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import {
   createPkce,
   exchangePkce,
+  isOAuthCallbackStateValid,
   oauthAuthorizeUrl,
   passwordLogin,
   publicUser,
@@ -304,7 +305,7 @@ export async function oauthCallback(request: NextRequest) {
     clearOauthCookies(response);
     return response;
   };
-  if (!code || !state || !expectedState || state !== expectedState || !verifier)
+  if (!code || !verifier || !isOAuthCallbackStateValid(state, expectedState))
     return fail('Sign-in could not be verified.');
 
   try {
