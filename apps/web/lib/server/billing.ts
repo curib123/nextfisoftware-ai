@@ -54,6 +54,15 @@ type DiscountRow = {
   redemption_count: number;
 };
 
+type PayMongoResourceAttributes = Record<string, unknown> & {
+  reference_number?: string;
+  metadata?: { reference_number?: string };
+  payments?: Array<{
+    id?: string;
+    attributes?: { status?: string; amount?: number; currency?: string };
+  }>;
+  livemode?: boolean;
+};
 type PayMongoEvent = {
   data?: {
     id?: string;
@@ -62,10 +71,13 @@ type PayMongoEvent = {
       livemode?: boolean;
       data?: {
         id?: string;
-        attributes?: Record<string, any>;
+        attributes?: PayMongoResourceAttributes;
       };
     };
   };
+};
+type PayMongoCheckoutResponse = {
+  data?: { id?: string; attributes?: { checkout_url?: string } };
 };
 
 export function paymentMode() {
@@ -433,7 +445,7 @@ async function createPayMongoSession(input: {
       },
     }),
   });
-  const body = (await response.json().catch(() => null)) as any;
+  const body = (await response.json().catch(() => null)) as PayMongoCheckoutResponse | null;
   const id = body?.data?.id;
   const checkoutUrl = body?.data?.attributes?.checkout_url;
   if (!response.ok || !id || !checkoutUrl)
@@ -537,7 +549,7 @@ async function processCheckoutPaid(event: PayMongoEvent) {
   if (payment.status === 'PAID') return;
 
   const providerPayments = Array.isArray(attributes.payments) ? attributes.payments : [];
-  const paid = providerPayments.find((item: any) => item?.attributes?.status === 'paid');
+  const paid = providerPayments.find((item) => item?.attributes?.status === 'paid');
   if (
     !paid?.id ||
     Number(paid.attributes?.amount) !== payment.amount ||
