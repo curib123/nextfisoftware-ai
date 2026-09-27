@@ -217,9 +217,43 @@ export async function syncNvidiaFreeModels(request: Request) {
 
   const allModels = await rest<NvidiaModelRow[]>('ai_models', {
     admin: true,
-    query: 'provider=eq.NVIDIA&source=eq.NVIDIA_DISCOVERED&select=*&order=health_checked_at.asc.nullsfirst,display_order.asc',
+    query:
+      'provider=eq.NVIDIA&source=eq.NVIDIA_DISCOVERED&select=*&order=health_checked_at.asc.nullsfirst,display_order.asc',
   });
-  const candidates = allModels.slice(0, probeLimit);
+
+  const discoveredSet = new Set(discovered);
+  for (const stale of allModels.filter(
+    (model) => !discoveredSet.has(model.provider_model_id),
+  )) {
+    await rest('ai_models', {
+      admin: true,
+      method: 'PATCH',
+      query: `id=eq.${encodeURIComponent(stale.id)}`,
+      body: {
+        enabled: false,
+        manual_available: false,
+        auto_available: false,
+        free_endpoint: false,
+        health_status: 'UNHEALTHY',
+        health_checked_at: new Date().toISOString(),
+        health_message: 'This model is no longer returned by the NVIDIA model catalog.',
+      },
+    });
+    await removeFreeManualPolicy(stale.id);
+  }
+
+  const unprobed = allModels.filter(
+    (model) =>
+      discoveredSet.has(model.provider_model_id) && !model.health_checked_at,
+  );
+  const candidates = (
+    unprobed.length
+      ? unprobed
+      : allModels.filter((model) =>
+          discoveredSet.has(model.provider_model_id),
+        )
+  ).slice(0, probeLimit);
+
   const results: Array<{
     id: string;
     providerModelId: string;
@@ -227,40 +261,53 @@ export async function syncNvidiaFreeModels(request: Request) {
     message: string;
   }> = [];
 
-  for (const model of candidates) {
-    const probe = await probeNvidiaModel(model.provider_model_id, key);
-    const now = new Date().toISOString();
-    const healthy = probe.status === 'HEALTHY';
-    const failureCount = healthy ? 0 : (model.health_failure_count ?? 0) + 1;
+  for (let index = 0; index < candidates.length; index += 3) {
+    const chunk = candidates.slice(index, index + 3);
+    const chunkResults = await Promise.all(
+      chunk.map(async (model) => {
+        const probe = await probeNvidiaModel(model.provider_model_id, key);
+        const now = new Date().toISOString();
+        const healthy = probe.status === 'HEALTHY';
+        const failureCount = healthy
+          ? 0
+          : (model.health_failure_count ?? 0) + 1;
 
-    await rest('ai_models', {
-      admin: true,
-      method: 'PATCH',
-      query: `id=eq.${encodeURIComponent(model.id)}`,
-      body: {
-        enabled: healthy,
-        manual_available: healthy,
-        auto_available: healthy,
-        free_endpoint: healthy,
-        health_status: probe.status,
-        health_checked_at: now,
-        health_message: probe.message,
-        health_failure_count: failureCount,
-        ...(healthy
-          ? { last_success_at: now }
-          : { last_failure_at: now }),
-      },
-    });
+        await rest('ai_models', {
+          admin: true,
+          method: 'PATCH',
+          query: `id=eq.${encodeURIComponent(model.id)}`,
+          body: {
+            enabled: healthy,
+            manual_available: healthy,
+            auto_available: healthy,
+            free_endpoint: healthy,
+            health_status: probe.status,
+            health_checked_at: now,
+            health_message: probe.message,
+            health_failure_count: failureCount,
+            ...(healthy
+              ? { last_success_at: now }
+              : { last_failure_at: now }),
+          },
+        });
 
-    if (healthy) await ensureFreeManualPolicy({ ...model, enabled: true, free_endpoint: true });
-    else await removeFreeManualPolicy(model.id);
+        if (healthy)
+          await ensureFreeManualPolicy({
+            ...model,
+            enabled: true,
+            free_endpoint: true,
+          });
+        else await removeFreeManualPolicy(model.id);
 
-    results.push({
-      id: model.id,
-      providerModelId: model.provider_model_id,
-      status: probe.status,
-      message: probe.message,
-    });
+        return {
+          id: model.id,
+          providerModelId: model.provider_model_id,
+          status: probe.status,
+          message: probe.message,
+        };
+      }),
+    );
+    results.push(...chunkResults);
   }
 
   const healthy = await rest<Pick<NvidiaModelRow, 'id'>[]>('ai_models', {
@@ -275,7 +322,10 @@ export async function syncNvidiaFreeModels(request: Request) {
     cataloged: allModels.length,
     probed: candidates.length,
     healthy: healthy.length,
-    remainingToProbe: Math.max(0, allModels.length - candidates.length),
+    remainingToProbe: Math.max(
+      0,
+      unprobed.length - candidates.length,
+    ),
     autoPool: pool,
     results,
   };
