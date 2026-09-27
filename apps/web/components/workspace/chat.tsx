@@ -773,7 +773,6 @@ export function Chat() {
             ref={composer}
             className="composer-input"
             rows={1}
-            ref={composer}
             aria-label="Message"
             aria-describedby="composer-status"
             placeholder={
