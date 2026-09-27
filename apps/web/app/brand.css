@@ -3664,3 +3664,215 @@ html {
     flex-direction: column;
   }
 }
+
+
+/* Rich model profiles expose strengths, health, and access without cluttering cards. */
+.model-free-badge,
+.model-health,
+.provider-health {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid var(--brand-soft);
+  border-radius: 999px;
+  color: var(--brand-mid);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+}
+.model-free-badge {
+  margin-left: auto;
+  border-color: color-mix(in srgb, var(--brand-teal) 35%, var(--brand-soft));
+  background: color-mix(in srgb, var(--brand-teal) 8%, var(--brand-paper));
+  color: var(--brand-teal);
+}
+.model-best-for {
+  margin-top: 14px;
+}
+.model-best-for > strong,
+.model-detail-content h4 {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--brand-ink);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.model-best-for > div,
+.model-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.model-best-for span,
+.model-detail-tags span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--brand-surface);
+  color: var(--brand-mid);
+  font-size: 9px;
+  font-weight: 650;
+}
+.model-card-status {
+  min-height: 26px;
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.model-health-healthy,
+.provider-health-healthy {
+  border-color: color-mix(in srgb, var(--brand-teal) 35%, var(--brand-soft));
+  background: color-mix(in srgb, var(--brand-teal) 8%, var(--brand-paper));
+  color: var(--brand-teal);
+}
+.model-health-degraded,
+.provider-health-degraded {
+  border-color: color-mix(in srgb, #d97706 35%, var(--brand-soft));
+  color: #b45309;
+}
+.model-health-unhealthy,
+.provider-health-unhealthy {
+  border-color: color-mix(in srgb, #dc2626 35%, var(--brand-soft));
+  color: #b91c1c;
+}
+.model-card-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.model-detail-content {
+  display: grid;
+  gap: 20px;
+}
+.model-detail-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.model-detail-hero .model-symbol {
+  flex: 0 0 auto;
+}
+.model-detail-hero p {
+  margin: 4px 0 0;
+  color: var(--brand-mid);
+  line-height: 1.6;
+}
+.model-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.model-fact-grid > div {
+  padding: 12px;
+  border: 1px solid var(--brand-soft);
+  border-radius: 12px;
+  background: var(--brand-surface);
+}
+.model-fact-grid span,
+.model-detail-list dt {
+  display: block;
+  color: var(--brand-mid);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: capitalize;
+}
+.model-fact-grid strong,
+.model-detail-list dd {
+  display: block;
+  margin: 4px 0 0;
+  color: var(--brand-ink);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.model-detail-list {
+  margin: 0;
+  display: grid;
+  gap: 7px;
+}
+.model-detail-list > div {
+  padding: 10px 0;
+  display: grid;
+  grid-template-columns: minmax(110px, 0.4fr) minmax(0, 1fr);
+  gap: 12px;
+  border-bottom: 1px solid var(--brand-soft);
+}
+.model-detail-list > div:last-child {
+  border-bottom: 0;
+}
+
+/* User-owned provider credentials stay visually separate from account settings. */
+.provider-connections-panel {
+  display: grid;
+  gap: 18px;
+}
+.provider-connection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.provider-connection-card {
+  padding: 14px;
+  border: 1px solid var(--brand-soft);
+  border-radius: 14px;
+  background: var(--brand-surface);
+}
+.provider-connection-card.is-connected {
+  border-color: color-mix(in srgb, var(--brand-teal) 28%, var(--brand-soft));
+}
+.provider-connection-card > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.provider-connection-card p {
+  margin: 9px 0 4px;
+  overflow-wrap: anywhere;
+}
+.provider-connection-card small {
+  display: block;
+  color: var(--brand-mid);
+  line-height: 1.45;
+}
+.provider-connection-card .text-link {
+  margin-top: 10px;
+}
+.provider-key-form {
+  padding-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(150px, 0.35fr) minmax(220px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  border-top: 1px solid var(--brand-soft);
+}
+.provider-key-form label {
+  min-width: 0;
+}
+.provider-key-form input,
+.provider-key-form select {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .model-fact-grid,
+  .provider-connection-grid,
+  .provider-key-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .model-detail-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .model-card-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
