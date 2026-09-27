@@ -759,7 +759,7 @@ export async function probeNvidiaModel(
           stream: false,
         }),
       },
-      12000,
+      8000,
     );
     const result = healthFromResponse(response);
     if (result.status === 'HEALTHY') {
