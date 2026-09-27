@@ -696,3 +696,30 @@ select p.id, m.id::text, m.id,
 from public.billing_plans p cross join public.ai_models m
 where p.code in ('PRO','MAX') and m.enabled
 on conflict(plan_id,bucket) do nothing;
+
+-- Security and scale hardening verified against Supabase Database Advisors.
+-- This Supabase-managed event-trigger helper should never be callable through the Data API.
+revoke execute on function public.rls_auto_enable() from public, anon, authenticated;
+
+-- Cover foreign keys used by ownership checks, joins, cascading deletes, billing, and reporting.
+create index if not exists attachments_message_id_idx on public.attachments(message_id);
+create index if not exists attachments_user_id_idx on public.attachments(user_id);
+create index if not exists audit_logs_actor_id_idx on public.audit_logs(actor_id);
+create index if not exists conversations_project_id_idx on public.conversations(project_id);
+create index if not exists economic_entries_actor_id_idx on public.economic_entries(actor_id);
+create index if not exists generation_policies_model_id_idx on public.generation_policies(model_id);
+create index if not exists messages_model_id_idx on public.messages(model_id);
+create index if not exists messages_user_id_idx on public.messages(user_id);
+create index if not exists payments_discount_code_id_idx on public.payments(discount_code_id);
+create index if not exists payments_plan_id_idx on public.payments(plan_id);
+create index if not exists payments_subscription_id_idx on public.payments(subscription_id);
+create index if not exists projects_preferred_model_id_idx on public.projects(preferred_model_id);
+create index if not exists saved_prompts_project_id_idx on public.saved_prompts(project_id);
+create index if not exists saved_prompts_user_id_idx on public.saved_prompts(user_id);
+create index if not exists subscriptions_plan_id_idx on public.subscriptions(plan_id);
+create index if not exists usage_records_model_id_idx on public.usage_records(model_id);
+create index if not exists usage_records_user_id_idx on public.usage_records(user_id);
+create index if not exists workflow_runs_conversation_id_idx on public.workflow_runs(conversation_id);
+create index if not exists workflow_runs_user_id_idx on public.workflow_runs(user_id);
+create index if not exists workflows_project_id_idx on public.workflows(project_id);
+
