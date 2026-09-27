@@ -181,14 +181,14 @@ export async function handleAdmin(
 
 async function countTable(table: string, query = '') {
   const response = await supabaseFetch(
-    \`/rest/v1/\${table}?select=id\${query ? \`&\${query}\` : ''}\`,
+    `/rest/v1/${table}?select=id${query ? `&${query}` : ''}`,
     {
       admin: true,
       method: 'HEAD',
       headers: { prefer: 'count=exact', range: '0-0' },
     },
   );
-  if (!response.ok) throw new Error(\`Unable to count \${table}.\`);
+  if (!response.ok) throw new Error(`Unable to count ${table}.`);
   const range = response.headers.get('content-range') ?? '*/0';
   return Number(range.split('/')[1] ?? 0) || 0;
 }
@@ -246,25 +246,25 @@ async function analytics() {
   const [usage, payments, entries, activeSubscriptions] = await Promise.all([
     rest<Usage[]>('usage_records', {
       admin: true,
-      query: \`created_at=gte.\${encodeURIComponent(since)}&select=provider,model_name,currency,estimated_cost,created_at\`,
+      query: `created_at=gte.${encodeURIComponent(since)}&select=provider,model_name,currency,estimated_cost,created_at`,
     }),
     rest<Payment[]>('payments', {
       admin: true,
-      query: \`status=eq.PAID&paid_at=gte.\${encodeURIComponent(since)}&select=id,user_id,status,amount,currency,created_at,paid_at\`,
+      query: `status=eq.PAID&paid_at=gte.${encodeURIComponent(since)}&select=id,user_id,status,amount,currency,created_at,paid_at`,
     }),
     rest<Economic[]>('economic_entries', {
       admin: true,
-      query: \`created_at=gte.\${encodeURIComponent(since)}&select=currency,kind,amount,created_at\`,
+      query: `created_at=gte.${encodeURIComponent(since)}&select=currency,kind,amount,created_at`,
     }),
     countTable(
       'subscriptions',
-      \`status=eq.ACTIVE&current_period_end=gt.\${encodeURIComponent(new Date().toISOString())}\`,
+      `status=eq.ACTIVE&current_period_end=gt.${encodeURIComponent(new Date().toISOString())}`,
     ),
   ]);
 
   const grouped = new Map<string, { provider: string; modelName: string; currency: string; cost: number; count: number }>();
   for (const row of usage) {
-    const key = \`\${row.provider}|\${row.model_name}|\${row.currency}\`;
+    const key = `${row.provider}|${row.model_name}|${row.currency}`;
     const current = grouped.get(key) ?? {
       provider: row.provider,
       modelName: row.model_name,
@@ -432,7 +432,7 @@ async function modelMutation(request: Request, actor: Authenticated, id?: string
     await rest('ai_models', {
       admin: true,
       method: 'PATCH',
-      query: \`id=eq.\${encodeURIComponent(modelId)}\`,
+      query: `id=eq.${encodeURIComponent(modelId)}`,
       body: { enabled: false, manual_available: false, auto_available: false },
     });
     await audit(actor.profile.id, 'MODEL_DISABLED', 'MODEL', modelId);
@@ -488,7 +488,7 @@ async function modelMutation(request: Request, actor: Authenticated, id?: string
   const rows = await rest<any[]>('ai_models', {
     admin: true,
     method,
-    query: id ? \`id=eq.\${encodeURIComponent(routeId(id, 'Model ID'))}\` : undefined,
+    query: id ? `id=eq.${encodeURIComponent(routeId(id, 'Model ID'))}` : undefined,
     prefer: 'return=representation',
     body: data,
   });
@@ -561,7 +561,7 @@ async function planMutation(request: Request, actor: Authenticated, id?: string)
   const rows = await rest<any[]>('billing_plans', {
     admin: true,
     method: id ? 'PATCH' : 'POST',
-    query: id ? \`id=eq.\${encodeURIComponent(routeId(id, 'Plan ID'))}\` : undefined,
+    query: id ? `id=eq.${encodeURIComponent(routeId(id, 'Plan ID'))}` : undefined,
     prefer: 'return=representation',
     body: data,
   });
@@ -573,7 +573,7 @@ async function planMutation(request: Request, actor: Authenticated, id?: string)
 async function billingOverview() {
   const [payments, activeSubscriptions, failedWebhooks] = await Promise.all([
     rest<{ status: string }[]>('payments', { admin: true, query: 'select=status' }),
-    countTable('subscriptions', \`status=eq.ACTIVE&current_period_end=gt.\${encodeURIComponent(new Date().toISOString())}\`),
+    countTable('subscriptions', `status=eq.ACTIVE&current_period_end=gt.${encodeURIComponent(new Date().toISOString())}`),
     countTable('webhook_events', 'status=eq.FAILED'),
   ]);
   const counts: Record<string, number> = {};
@@ -590,7 +590,7 @@ async function adminPayments() {
   const profiles = ids.length
     ? await rest<Profile[]>('profiles', {
         admin: true,
-        query: \`id=in.(\${ids.join(',')})&select=*\`,
+        query: `id=in.(${ids.join(',')})&select=*`,
       })
     : [];
   const byId = new Map(profiles.map((row) => [row.id, row]));
@@ -672,7 +672,7 @@ async function usersRoute(request: Request, actor: Authenticated, id?: string) {
     });
     const filtered = rows.filter(
       (row) =>
-        (!q || \`\${row.username} \${row.email}\`.toLowerCase().includes(q)) &&
+        (!q || `${row.username} ${row.email}`.toLowerCase().includes(q)) &&
         (!role || row.role === role),
     );
     const size = 20;
@@ -728,7 +728,7 @@ async function usersRoute(request: Request, actor: Authenticated, id?: string) {
   const input = await bodyJson<Record<string, unknown>>(request);
   const profiles = await rest<Profile[]>('profiles', {
     admin: true,
-    query: \`id=eq.\${encodeURIComponent(userId)}&select=*\`,
+    query: `id=eq.${encodeURIComponent(userId)}&select=*`,
   });
   const target = profiles[0];
   if (!target) throw new ApiError('User not found.', 404);
@@ -743,12 +743,12 @@ async function usersRoute(request: Request, actor: Authenticated, id?: string) {
   await rest('profiles', {
     admin: true,
     method: 'PATCH',
-    query: \`id=eq.\${encodeURIComponent(userId)}\`,
+    query: `id=eq.${encodeURIComponent(userId)}`,
     body: { role, status },
   });
   if (typeof input.password === 'string' && input.password) {
     const password = stringValue(input.password, 'Password', { min: 12, max: 128 });
-    await authAdminJson(\`/users/\${encodeURIComponent(userId)}\`, {
+    await authAdminJson(`/users/${encodeURIComponent(userId)}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ password }),
@@ -770,7 +770,7 @@ async function auditRoute(request: Request) {
   const profiles = actorIds.length
     ? await rest<Profile[]>('profiles', {
         admin: true,
-        query: \`id=in.(\${actorIds.join(',')})&select=*\`,
+        query: `id=in.(${actorIds.join(',')})&select=*`,
       })
     : [];
   const byId = new Map(profiles.map((row) => [row.id, row]));
