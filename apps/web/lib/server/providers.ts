@@ -20,6 +20,61 @@ export type ProviderOptions = {
   image?: (mimeType: string, base64: string) => Promise<void>;
 };
 
+type ProviderUsage = Record<string, unknown> & {
+  input_tokens?: number;
+  input_tokens_details?: { cached_tokens?: number };
+  output_tokens?: number;
+  output_tokens_details?: { reasoning_tokens?: number };
+  promptTokenCount?: number;
+  cachedContentTokenCount?: number;
+  candidatesTokenCount?: number;
+  thoughtsTokenCount?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+};
+type ProviderStreamEvent = {
+  type?: string;
+  delta?: string | { type?: string; text?: string; content?: string };
+  error?: unknown;
+  response?: {
+    usage?: ProviderUsage;
+    output?: Array<{ type?: string; result?: string }>;
+  };
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+        thought?: boolean;
+        inlineData?: { mimeType?: string; data?: string };
+      }>;
+    };
+    finishReason?: string;
+  }>;
+  usageMetadata?: ProviderUsage;
+  message?: { usage?: ProviderUsage };
+  usage?: ProviderUsage;
+  choices?: Array<{ delta?: { content?: string }; finish_reason?: string }>;
+};
+type OpenAIContent =
+  | { type: 'input_text'; text: string }
+  | { type: 'input_image'; detail?: 'low'; image_url: string }
+  | { type: 'input_file'; filename: string; file_data: string };
+type OpenAIInput = { role: string; content: string | OpenAIContent[] };
+type GooglePart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } };
+type AnthropicPart = {
+  type: string;
+  text?: string;
+  cache_control?: { type: string };
+  source?: { type: string; media_type: string; data: string };
+};
+type AnthropicInput = { role: string; content: AnthropicPart[] };
+type MistralPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+type MistralInput = { role: string; content: string | MistralPart[] };
+
 export class ProviderFailure extends Error {
   constructor(
     public readonly category: string,
@@ -86,7 +141,7 @@ async function* readEvents(body: ReadableStream<Uint8Array>) {
           .map((line) => line.slice(5).trimStart())
           .join('\n');
         if (data && data !== '[DONE]')
-          yield JSON.parse(data) as Record<string, any>;
+          yield JSON.parse(data) as ProviderStreamEvent;
         end = buffer.indexOf('\n\n');
       }
       if (done) break;
@@ -112,7 +167,7 @@ async function openai(
 ) {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new ProviderFailure('NOT_CONFIGURED', false);
-  const input: any[] = messages.map((m) => ({ role: m.role, content: m.content }));
+  const input: OpenAIInput[] = messages.map((m) => ({ role: m.role, content: m.content }));
   if (files.length) {
     const last = input[input.length - 1];
     last.content = [
@@ -214,7 +269,7 @@ async function google(
     .filter((m) => m.role !== 'system')
     .map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }] as any[],
+      parts: [{ text: m.content }] as GooglePart[],
     }));
   if (!contents.length) contents.push({ role: 'user', parts: [{ text: '' }] });
   contents[contents.length - 1]!.parts.push(
@@ -297,7 +352,7 @@ async function anthropic(
         ? { cache_control: { type: 'ephemeral' } }
         : {}),
     }));
-  const input: any[] = messages
+  const input: AnthropicInput[] = messages
     .filter((m) => m.role !== 'system')
     .map((m) => ({
       role: m.role,
@@ -373,11 +428,11 @@ async function mistral(
   if (options.feature === 'image_generation')
     throw new ProviderFailure('UNSUPPORTED_FEATURE', false);
 
-  const input: any[] = messages.map((m) => ({ role: m.role, content: m.content }));
+  const input: MistralInput[] = messages.map((m) => ({ role: m.role, content: m.content }));
   if (!input.length) input.push({ role: 'user', content: '' });
   if (files.length) {
     const last = input[input.length - 1];
-    const content: any[] = [{ type: 'text', text: last.content }];
+    const content: MistralPart[] = [{ type: 'text', text: String(last.content) }];
     for (const file of files) {
       if (file.mimeType === 'text/plain')
         content.push({
