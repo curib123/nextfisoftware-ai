@@ -94,9 +94,11 @@ payment secrets in a `NEXT_PUBLIC_` variable.
 Use the dedicated Vrompt Supabase project and keep its migration history aligned
 with `supabase/migrations`.
 
-The current baseline is:
+The current migration head is:
 
-`supabase/migrations/20260927130707_nextjs_fullstack.sql`
+`supabase/migrations/20260927190504_nvidia_free_byok_model_metadata.sql`
+
+Fresh environments must apply the complete migration chain in order.
 
 For Google user login, enable Google in Supabase Auth, configure its Client ID
 and Client Secret, and allow:
