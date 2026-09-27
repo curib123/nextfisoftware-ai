@@ -39,7 +39,7 @@ const modelFields: Field[] = [
   {
     key: 'provider',
     label: 'Provider',
-    options: ['OPENAI', 'GOOGLE', 'ANTHROPIC', 'MISTRAL'],
+    options: ['OPENAI', 'GOOGLE', 'ANTHROPIC', 'MISTRAL', 'NVIDIA'],
   },
   { key: 'providerModelId', label: 'Provider model ID' },
   { key: 'category', label: 'Category' },
@@ -704,6 +704,7 @@ export function AdminRegistry({ plans = false }: { plans?: boolean }) {
   const [notice, setNotice] = useState('');
   const [query, setQuery] = useState('');
   const [saving, setSaving] = useState(false);
+  const [syncingNvidia, setSyncingNvidia] = useState(false);
   const config = resource.data;
   const planItems = planResource.data?.plans;
   const visibleItems = (plans ? planItems : config?.models)?.filter((item) =>
@@ -711,6 +712,37 @@ export function AdminRegistry({ plans = false }: { plans?: boolean }) {
       .toLowerCase()
       .includes(query.trim().toLowerCase()),
   );
+  async function syncNvidia() {
+    if (!resource.accessToken || syncingNvidia) return;
+    setSyncingNvidia(true);
+    setNotice('');
+    try {
+      const result = await apiRequest<{
+        discovered: number;
+        cataloged: number;
+        probed: number;
+        healthy: number;
+        remainingToProbe: number;
+      }>('/admin/workspace/nvidia-sync', {
+        accessToken: resource.accessToken,
+        method: 'POST',
+        body: JSON.stringify({ probeLimit: 12 }),
+      });
+      setNotice(
+        `NVIDIA sync: ${result.discovered} discovered · ${result.probed} probed · ${result.healthy} healthy${result.remainingToProbe ? ` · ${result.remainingToProbe} waiting for the next sync` : ''}.`,
+      );
+      resource.refresh();
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? `NVIDIA sync failed: ${error.message}`
+          : 'NVIDIA sync failed.',
+      );
+    } finally {
+      setSyncingNvidia(false);
+    }
+  }
+
   // Normalize nested feature records from the billing API into its write DTO.
   function editPlan(plan: RecordItem) {
     const limits = (
@@ -767,6 +799,15 @@ export function AdminRegistry({ plans = false }: { plans?: boolean }) {
         >
           + Add {plans ? 'plan' : 'model'}
         </button>
+        {!plans && (
+          <button
+            className="secondary-button"
+            disabled={!resource.accessToken || syncingNvidia}
+            onClick={() => void syncNvidia()}
+          >
+            {syncingNvidia ? 'Checking NVIDIA…' : 'Sync NVIDIA free models'}
+          </button>
+        )}
         <button
           className="secondary-button"
           onClick={() => {
@@ -803,7 +844,7 @@ export function AdminRegistry({ plans = false }: { plans?: boolean }) {
                 <p className="muted">
                   {plans
                     ? `${item.currency} ${(Number(item.originalPrice) / 100).toFixed(2)} · ${String(item.monthlyCredits)} monthly credits`
-                    : `${item.provider} · ${String(item.providerModelId)}`}
+                    : `${item.provider} · ${String(item.providerModelId)}${item.provider === 'NVIDIA' ? ` · ${String(item.healthStatus ?? 'UNKNOWN')}` : ''}`}
                 </p>
               </div>
             </div>
