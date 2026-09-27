@@ -17,7 +17,7 @@ NestJS, Prisma, Redis, and the self-hosted PostgreSQL runtime have been removed.
 ## Development
 
 1. Use the dedicated Vrompt Supabase project `ytzjrztxmnhqtokycenw`.
-2. The hosted schema is already provisioned from `supabase/migrations/20260927000000_nextjs_fullstack.sql`; apply that file only when creating a fresh environment.
+2. The hosted schema is already provisioned from `supabase/migrations/20260927130707_nextjs_fullstack.sql`; apply that file only when creating a fresh environment.
 3. Copy `.env.example` to `.env`. The project URL and publishable key are prefilled; add the server-only `SUPABASE_SECRET_KEY` from the Vrompt project's API Keys settings.
 4. Configure any AI provider keys you want to enable.
 5. Run:
