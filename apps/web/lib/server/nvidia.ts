@@ -143,7 +143,9 @@ export async function syncNvidiaFreeModels(request: Request) {
       503,
     );
 
-  const input = await bodyJson<Record<string, unknown>>(request).catch(() => ({}));
+  const input: Record<string, unknown> = await bodyJson<Record<string, unknown>>(
+    request,
+  ).catch(() => ({}));
   const probeLimit = integerValue(input.probeLimit ?? 12, 'Probe limit', 1, 20);
   const discovered = await discoverNvidiaModelIds(key);
   const existing = await rest<NvidiaModelRow[]>('ai_models', {
