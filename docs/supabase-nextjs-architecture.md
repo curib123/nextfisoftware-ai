@@ -1,17 +1,23 @@
 # Vrompt: Next.js + Supabase architecture
 
-Vrompt now targets a single full-stack Next.js application.
+Vrompt is a single full-stack Next.js application designed for serverless
+deployment.
 
 ## Runtime
 
 - **UI:** Next.js App Router + React.
 - **Backend:** same-origin Next.js Route Handlers under `/api/v1`.
+- **Hosting:** Vercel.
 - **Database:** Supabase Postgres.
-- **Authentication:** Supabase Auth. OAuth/password tokens are never accepted as authorization without server validation.
+- **Authentication:** Supabase Auth with Google/GitHub OAuth for users and a
+  separate staff password flow.
 - **Files:** private Supabase Storage bucket (`vrompt-private`).
 - **AI:** provider calls are made only from Next.js server code. Provider keys never reach the browser.
 - **Payments:** PayMongo checkout + signed webhooks.
 - **Caching / quotas:** Postgres-backed atomic reservations remove the Redis requirement and work on serverless deployments.
+
+No Docker, Nginx, Prisma, Redis, NestJS, or self-hosted Postgres runtime is
+required.
 
 ## Security model
 
@@ -19,23 +25,33 @@ Vrompt now targets a single full-stack Next.js application.
 2. Browser-readable tables receive explicit grants; billing, usage, audit and accounting tables remain server-only.
 3. User rows use ownership predicates based on `auth.uid()`.
 4. Administrator authorization is stored in `profiles.role`, never user-editable auth metadata.
-5. The Supabase secret key is server-only. The publishable and secret Supabase keys are both kept server-side because browser code talks only to same-origin Next.js routes.
+5. The Supabase secret key is server-only. The publishable key is safe to expose, although the current browser application talks to same-origin Next.js APIs.
 6. File objects are private. Next.js checks the attachment owner before it reads or deletes an object.
 7. Quota reservation/finalization is atomic in Postgres. The RPCs are revoked from `PUBLIC`, `anon` and `authenticated` and granted only to `service_role`.
 8. OAuth uses PKCE + state and short-lived HttpOnly cookies. Refresh tokens remain HttpOnly.
 9. Billing access is activated only by a validated PayMongo webhook, never by the browser redirect.
 
+## User OAuth
+
+Normal users can sign in with Google from the shared sign-in dialog. The
+application uses:
+
+- `GET /api/v1/auth/google` to begin Google OAuth
+- `GET /auth/callback` to exchange the PKCE authorization code
+- an HttpOnly refresh cookie for session renewal
+
+The Google provider must be enabled separately in the Vrompt Supabase project's
+Auth settings because provider credentials are not stored in SQL migrations.
+
 ## Cost controls
 
 Vrompt budgets **$0.008 of provider cost per credit**. Manual models calculate credits from configured input/output limits and provider rates. Auto mode uses a low-cost pool and only selects models whose bounded provider cost fits the credit budget.
-
-The production seed replaces the retiring Gemini 2.5 image model with `gemini-3.1-flash-lite-image` and caps image provider cost at $0.04 per generation for credit planning.
 
 Default plans:
 
 | Plan | Price | Credits | Maximum modeled provider budget |
 | --- | ---: | ---: | ---: |
-| Free | $0 | 30 | $0.24 |
+| Free (Mistral only) | $0 | 30 | $0.24 |
 | Starter | $5.99 | 100 | $0.80 |
 | Pro | $11.99 | 250 | $2.00 |
 | Max | $24.99 | 600 | $4.80 |
@@ -46,8 +62,8 @@ Free-user spend must still be treated as acquisition cost. Track conversion and 
 
 ```env
 NEXT_PUBLIC_SITE_URL=https://your-domain.example
-SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+NEXT_PUBLIC_SUPABASE_URL=https://ytzjrztxmnhqtokycenw.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 SUPABASE_SECRET_KEY=sb_secret_...
 
 OPENAI_API_KEY=
@@ -61,15 +77,22 @@ PAYMONGO_WEBHOOK_SECRET=
 PAYMONGO_PAYMENT_METHODS=card,gcash,qrph
 ```
 
-Never put `SUPABASE_SECRET_KEY`, AI provider keys, or payment secrets in a `NEXT_PUBLIC_` variable.
+Never put `SUPABASE_SECRET_KEY`, AI provider keys, OAuth client secrets, or
+payment secrets in a `NEXT_PUBLIC_` variable.
 
 ## Supabase setup
 
-Create a **dedicated Vrompt Supabase project**. Do not apply the migration to another application database.
+Use the dedicated Vrompt Supabase project and keep its migration history aligned
+with `supabase/migrations`.
 
-Apply `supabase/migrations/20260927000000_nextjs_fullstack.sql`, configure Google/GitHub providers in Supabase Auth if used, then add these redirect URLs:
+The current baseline is:
+
+`supabase/migrations/20260927130707_nextjs_fullstack.sql`
+
+For Google user login, enable Google in Supabase Auth, configure its Client ID
+and Client Secret, and allow:
 
 - `https://YOUR_DOMAIN/auth/callback`
 - `http://localhost:3000/auth/callback` for local development
 
-The repository deliberately does not contain live credentials.
+The repository deliberately does not contain private OAuth credentials.

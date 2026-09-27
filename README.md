@@ -7,27 +7,41 @@ Vrompt is a private multi-model AI workspace built as one **Next.js full-stack a
 - Next.js App Router + React for UI and backend Route Handlers
 - Supabase Postgres with Row Level Security
 - Supabase Auth with PKCE OAuth and HttpOnly refresh cookies
+- Google OAuth for normal user sign-in
 - Supabase private Storage for uploads and generated images
 - OpenAI, Google, Anthropic, and Mistral server-side provider adapters
 - PayMongo checkout + signed webhooks
-- Optional Oracle Free/VPS deployment with Docker + Nginx
+- Vercel-ready deployment with no Docker runtime
 
-NestJS, Prisma, Redis, and the self-hosted PostgreSQL runtime have been removed.
+NestJS, Prisma, Redis, Docker, Nginx, and the self-hosted PostgreSQL runtime have been removed.
 
 ## Development
 
 1. Use the dedicated Vrompt Supabase project `ytzjrztxmnhqtokycenw`.
-2. The hosted schema is already provisioned from `supabase/migrations/20260927130707_nextjs_fullstack.sql`; apply that file only when creating a fresh environment.
+2. The hosted schema is already provisioned from `supabase/migrations/20260927130707_nextjs_fullstack.sql`; apply that baseline only when creating a fresh environment.
 3. Copy `.env.example` to `.env`. The project URL and publishable key are prefilled; add the server-only `SUPABASE_SECRET_KEY` from the Vrompt project's API Keys settings.
 4. Configure any AI provider keys you want to enable.
-5. Run:
+5. Configure Google under **Supabase Auth → Providers → Google** for user sign-in.
+6. Run:
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Open http://localhost:3000, or http://localhost:3100 when using Docker Compose.
+Open http://localhost:3000.
+
+## User authentication
+
+The user-facing sign-in flow includes **Continue with Google**. The application
+starts a Supabase PKCE OAuth flow at `/api/v1/auth/google` and returns through
+`/auth/callback`.
+
+Google OAuth configuration is project-specific and is not part of database
+migrations. For the Vrompt Supabase project, configure the Google Client ID and
+Client Secret in Supabase Auth and allow the application callback URL.
+
+The staff/admin password flow remains separate from normal user OAuth.
 
 ## Security
 
@@ -38,7 +52,7 @@ Open http://localhost:3000, or http://localhost:3100 when using Docker Compose.
 - Private files are read only after a server-side ownership check.
 - Credit reservation/finalization is atomic in Postgres.
 - Paid access is activated only from a verified PayMongo webhook.
-- CSP, HSTS in production, anti-framing, MIME sniffing protection, and per-IP Nginx API rate limits are enabled.
+- CSP, HSTS in production, anti-framing, MIME sniffing protection, and restrictive browser permissions are enabled.
 
 ## Unit economics
 
@@ -54,6 +68,9 @@ One credit budgets at most **US$0.008** of provider work. Default monthly provid
 Free accounts route chat exclusively through the Mistral API. Paid plans can use multi-model Auto routing and eligible manual models; premium/manual models consume more credits according to their configured bounded cost. Admin analytics report revenue, AI cost, variable cost, contribution profit, and margin.
 
 ## Production
+
+Deploy the Next.js application directly to Vercel and configure the production
+environment variables in Vercel Project Settings.
 
 See `docs/production-deployment.md` and `docs/supabase-nextjs-architecture.md`.
 

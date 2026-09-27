@@ -1,7 +1,0 @@
-services:
-  vrompt-nginx:
-    image: ${VROMPT_NGINX_IMAGE:?VROMPT_NGINX_IMAGE is required}
-    build: null
-  vrompt-web:
-    image: ${VROMPT_WEB_IMAGE:?VROMPT_WEB_IMAGE is required}
-    build: null
