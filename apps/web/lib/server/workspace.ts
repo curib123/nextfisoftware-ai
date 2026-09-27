@@ -795,6 +795,7 @@ async function runWorkflow(request: Request, user: Authenticated, workflowId: st
     for (const step of workflow.steps) {
       const policy = findPolicy(cfg.policies, step.modelId ? 'MANUAL' : 'AUTO', step.modelId);
       const model = resolveModel(cfg.models, policy, step.modelId ? 'MANUAL' : 'AUTO', 'chat');
+      if (!model) throw new ApiError('No configured model is available for this workflow step.', 503);
       const prompt = `${step.prompt}\n\nInput:\n${value}`;
       value = await generateOnce(user, cfg.plan, policy, model, conversation.id, prompt, system);
       completed += 1;
