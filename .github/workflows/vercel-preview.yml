@@ -1,0 +1,87 @@
+name: Vercel Preview (Prebuilt)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: vrompt-vercel-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: Build and deploy prebuilt preview
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_SCOPE: nextfi
+      VERCEL_PROJECT: vrompt-ai-workplace-web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check Vercel token
+        id: vercel-auth
+        shell: bash
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VERCEL_TOKEN is not configured; prebuilt preview deployment is skipped."
+          fi
+
+      - name: Link Vercel project
+        if: steps.vercel-auth.outputs.configured == 'true'
+        run: >
+          npx --yes vercel@59.19.1 link
+          --yes
+          --project "$VERCEL_PROJECT"
+          --scope "$VERCEL_SCOPE"
+          --token "$VERCEL_TOKEN"
+          --cwd apps/web
+
+      - name: Pull preview environment
+        if: steps.vercel-auth.outputs.configured == 'true'
+        run: >
+          npx --yes vercel@59.19.1 pull
+          --yes
+          --environment=preview
+          --scope "$VERCEL_SCOPE"
+          --token "$VERCEL_TOKEN"
+          --cwd apps/web
+
+      - name: Build preview outside Vercel hosted build queue
+        if: steps.vercel-auth.outputs.configured == 'true'
+        run: >
+          npx --yes vercel@59.19.1 build
+          --scope "$VERCEL_SCOPE"
+          --token "$VERCEL_TOKEN"
+          --cwd apps/web
+
+      - name: Deploy prebuilt preview
+        if: steps.vercel-auth.outputs.configured == 'true'
+        id: deploy
+        shell: bash
+        run: |
+          URL="$(npx --yes vercel@59.19.1 deploy --prebuilt --archive=tgz --scope "$VERCEL_SCOPE" --token "$VERCEL_TOKEN" --cwd apps/web)"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "### Vercel Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "$URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Preview deployment status
+        if: steps.vercel-auth.outputs.configured != 'true'
+        run: |
+          echo "### Vercel Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "Automatic Git previews are disabled to avoid Vercel hosted build-rate-limit failures." >> "$GITHUB_STEP_SUMMARY"
+          echo "Add the repository secret VERCEL_TOKEN to enable prebuilt PR previews." >> "$GITHUB_STEP_SUMMARY"
