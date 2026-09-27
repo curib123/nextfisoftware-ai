@@ -48,6 +48,7 @@ export function Chat() {
   const modelChosenByUser = useRef(false);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [feature, setFeature] = useState<'chat' | 'image_generation'>('chat');
+  const [preferByok, setPreferByok] = useState(false);
   const [models, setModels] = useState<Model[]>([]);
   const [selected, setSelected] = useState('AUTO');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -78,7 +79,7 @@ export function Chat() {
       : models.find((model) => model.id === selected);
   const useByok = Boolean(
     selectedWorkspaceModel?.byokAvailable &&
-      selectedWorkspaceModel.planAvailable !== true,
+      (preferByok || selectedWorkspaceModel.planAvailable !== true),
   );
   const allowance = useByok
     ? usage?.byokAllowance
@@ -154,6 +155,7 @@ export function Chat() {
     modelChosenByUser.current = true;
     setSelectionNotice('');
     setSelected(modelId);
+    setPreferByok(false);
     setFeature('chat');
     closeModelPicker();
   }
@@ -955,6 +957,23 @@ export function Chat() {
                 ))}
               </div>
             </details>
+            {selected !== 'AUTO' &&
+              selectedWorkspaceModel?.byokAvailable &&
+              selectedWorkspaceModel.planAvailable === true && (
+                <button
+                  type="button"
+                  className={`composer-byok-toggle ${useByok ? 'is-active' : ''}`}
+                  disabled={busy}
+                  onClick={() => setPreferByok((value) => !value)}
+                  title={
+                    useByok
+                      ? 'Switch back to the Vrompt plan allowance'
+                      : 'Use your connected provider API key for this model'
+                  }
+                >
+                  {useByok ? 'Using my API' : 'Use my API'}
+                </button>
+              )}
             <div className="composer-actions">
               <input
                 type="file"
