@@ -3938,3 +3938,11 @@ html {
   padding: 2px 6px;
   font-size: 7px;
 }
+
+
+/* Auto-routing status tags make model eligibility visible without extra UI noise. */
+.model-availability-ready {
+  border-color: color-mix(in srgb, var(--brand-teal) 30%, var(--brand-soft));
+  background: color-mix(in srgb, var(--brand-teal) 7%, var(--brand-paper));
+  color: var(--brand-teal-deep);
+}

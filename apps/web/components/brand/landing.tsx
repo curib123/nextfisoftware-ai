@@ -189,7 +189,7 @@ export function Landing() {
                   <strong>Let Auto choose</strong>
                   <span className="hub-recommended">Recommended</span>
                 </span>
-                <small>A model selected to suit your task.</small>
+                <small>Best-fit healthy model for your task, plan, and credit budget.</small>
               </span>
               <Icon name="arrow" />
             </a>
@@ -261,7 +261,7 @@ export function Landing() {
               {
                 icon: 'workflow',
                 title: 'Start with Auto. Stay in control.',
-                text: 'Auto chooses an available model for your task. Select a specific model yourself when you know what you need.',
+                text: 'Auto filters out unavailable models, matches capabilities to your task, then chooses the strongest eligible fit within your plan and credit budget.',
               },
               {
                 icon: 'chart',
@@ -290,7 +290,11 @@ export function Landing() {
             <h2 id="auto-title">
               Your task. <em>Auto’s choice.</em>
             </h2>
-            <p>Choose the right AI—or let Auto choose for you.</p>
+            <p>
+              Auto checks availability first, matches your task to model
+              strengths, and routes only to an eligible model that fits your
+              plan and credit budget.
+            </p>
           </div>
           <ol className="auto-steps">
             <li>
@@ -300,16 +304,20 @@ export function Landing() {
             </li>
             <li>
               <span>02</span>
-              <h3>Auto finds a fit</h3>
+              <h3>Auto filters and ranks</h3>
               <p>
-                It considers the task, capabilities, model availability, and
-                your plan.
+                Unavailable or unhealthy endpoints are skipped. The remaining
+                models are ranked by task fit, capabilities, quality, and your
+                plan.
               </p>
             </li>
             <li>
               <span>03</span>
-              <h3>Keep moving forward</h3>
-              <p>See which model answered. Switch models whenever you want.</p>
+              <h3>Best eligible model answers</h3>
+              <p>
+                Cost is used as a tie-breaker after fit and quality, while the
+                plan’s safety ceiling prevents surprise provider spend.
+              </p>
             </li>
           </ol>
           <div className="landing-composer">
@@ -442,7 +450,7 @@ export function Landing() {
 
                 {Boolean(model.bestFor?.length) && (
                   <div className="model-best-for">
-                    <strong>Best for</strong>
+                    <strong>Auto fit · Best for</strong>
                     <div>
                       {model.bestFor?.slice(0, 3).map((item) => (
                         <span key={item}>{item}</span>
@@ -479,6 +487,11 @@ export function Landing() {
                         : model.healthStatus
                           ? model.healthStatus.replaceAll('_', ' ')
                           : 'Health not checked'}
+                    </small>
+                  )}
+                  {model.available !== false && (
+                    <small className="model-availability model-availability-ready">
+                      Available for routing
                     </small>
                   )}
                   {model.available === false && (

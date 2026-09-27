@@ -26,24 +26,28 @@ function bestFor(modelId: string) {
   if (/code|coder|codestral|devstral/.test(id)) {
     values.add('Coding');
     values.add('Debugging');
+    values.add('Code review');
   }
   if (/reason|r1|nemotron|deepseek|glm|qwq/.test(id)) {
     values.add('Reasoning');
-    values.add('Problem solving');
+    values.add('Analysis');
+    values.add('Math & problem solving');
   }
   if (/vision|vl|multimodal/.test(id)) {
     values.add('Image understanding');
+    values.add('Visual analysis');
     values.add('Multimodal chat');
   }
   if (/instruct|chat|llama|mistral|gemma|qwen|kimi|phi/.test(id)) {
     values.add('General chat');
     values.add('Writing');
   }
+  if (/small|mini|nano|7b|8b/.test(id)) values.add('Fast responses');
   if (!values.size) {
     values.add('General chat');
     values.add('Experimentation');
   }
-  return [...values].slice(0, 4);
+  return [...values].slice(0, 5);
 }
 
 function inferredCapabilities(modelId: string) {
