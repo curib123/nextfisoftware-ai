@@ -57,10 +57,15 @@ export type Model = {
   creditCosts?: { chat: number | null; image_generation: number | null };
   available?: boolean;
   autoAvailable?: boolean;
+  manualAvailable?: boolean;
+  planAvailable?: boolean;
+  byokAvailable?: boolean;
   id: string;
   provider: string;
+  providerModelId?: string;
   displayName: string;
   description: string;
+  category?: string;
   capabilities: string[];
   capabilityStates?: Record<
     string,
@@ -70,6 +75,19 @@ export type Model = {
   defaultReasoningLevel?: string;
   enabled?: boolean;
   maintenance?: boolean;
+  bestFor?: string[];
+  quickFacts?: Record<string, unknown>;
+  details?: Record<string, unknown>;
+  freeEndpoint?: boolean;
+  source?: 'MANUAL' | 'NVIDIA_DISCOVERED';
+  healthStatus?:
+    | 'UNKNOWN'
+    | 'HEALTHY'
+    | 'DEGRADED'
+    | 'UNHEALTHY'
+    | 'NOT_CONFIGURED';
+  healthCheckedAt?: string | null;
+  healthMessage?: string | null;
 };
 export type Conversation = {
   id: string;
@@ -120,4 +138,29 @@ export type Usage = {
     maxFiles: number;
     maxFileBytes: number;
   }[];
+  byokAllowance?: {
+    connectedProviders: string[];
+    allowedFeatures: string[];
+    dailyRemaining: number;
+    monthlyRemaining: number;
+    dailyLimit: number;
+    monthlyLimit: number;
+    maxFiles: number;
+    maxFileBytes: number;
+    creditCosts: { chat: 0; image_generation: 0 };
+  };
+};
+
+export type ProviderConnection = {
+  provider: 'OPENAI' | 'GOOGLE' | 'ANTHROPIC' | 'MISTRAL' | 'NVIDIA';
+  connected: boolean;
+  keyHint: string;
+  healthStatus:
+    | 'UNKNOWN'
+    | 'HEALTHY'
+    | 'DEGRADED'
+    | 'UNHEALTHY'
+    | 'NOT_CONFIGURED';
+  healthCheckedAt: string | null;
+  healthMessage: string | null;
 };
