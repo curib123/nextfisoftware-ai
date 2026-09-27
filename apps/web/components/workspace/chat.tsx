@@ -504,7 +504,7 @@ export function Chat() {
             <Link
               href={
                 requestedModel && requestedModel !== 'AUTO'
-                  ? `/billing?modelId=${encodeURIComponent(requestedModel)}`
+                  ? `/billing?unlockModel=${encodeURIComponent(catalog?.find((model) => model.id === requestedModel)?.displayName ?? 'this model')}&modelId=${encodeURIComponent(requestedModel)}`
                   : '/billing'
               }
               className="text-link"
@@ -847,7 +847,12 @@ export function Chat() {
                       .map((model) => {
                         const selectable = selectableModelIds.has(model.id);
                         const unavailable = model.available === false;
-                        const locked = !selectable && !unavailable;
+                        const includedViaFreeAuto =
+                          usage?.plan?.toLowerCase() === 'free' &&
+                          model.provider === 'MISTRAL' &&
+                          !unavailable;
+                        const locked =
+                          !selectable && !includedViaFreeAuto && !unavailable;
                         const allowedModel = models.find((item) => item.id === model.id);
                         return (
                           <button
@@ -866,6 +871,7 @@ export function Chat() {
                             disabled={busy || unavailable}
                             onClick={() => {
                               if (locked) openUpgrade(model);
+                              else if (includedViaFreeAuto) chooseModel('AUTO');
                               else chooseModel(model.id);
                             }}
                             aria-label={
@@ -873,7 +879,9 @@ export function Chat() {
                                 ? `${model.displayName}. Locked. View upgrade options.`
                                 : unavailable
                                   ? `${model.displayName}. Temporarily unavailable.`
-                                  : model.displayName
+                                  : includedViaFreeAuto
+                                    ? `${model.displayName}. Included through Auto on the Free plan.`
+                                    : model.displayName
                             }
                           >
                             <ProviderIcon provider={model.provider} />
@@ -884,7 +892,9 @@ export function Chat() {
                                   ? 'Upgrade to unlock'
                                   : unavailable
                                     ? 'Temporarily unavailable'
-                                    : allowedModel?.creditCosts?.chat != null
+                                    : includedViaFreeAuto
+                                      ? 'Included through Auto on Free'
+                                      : allowedModel?.creditCosts?.chat != null
                                       ? `${allowedModel.creditCosts.chat} ${allowedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
                                       : 'Included in your plan'}
                               </small>
@@ -892,6 +902,10 @@ export function Chat() {
                             {locked ? (
                               <span className="model-lock-badge">
                                 <Icon name="lock" /> Upgrade
+                              </span>
+                            ) : includedViaFreeAuto ? (
+                              <span className="model-included-badge">
+                                <Icon name="check" /> Included
                               </span>
                             ) : selected === model.id ? (
                               <Icon name="check" />
