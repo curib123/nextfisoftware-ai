@@ -8,6 +8,7 @@ export type DbModel = {
   provider_model_id: string;
   display_name: string;
   description: string;
+  category: string;
   capabilities: string[];
   capability_states: Record<string, string> | null;
   reasoning_levels: string[];
