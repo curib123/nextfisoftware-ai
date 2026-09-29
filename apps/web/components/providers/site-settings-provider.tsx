@@ -49,7 +49,7 @@ export function useSiteSettings() {
     siteName,
     tagline: String(
       settings['branding.tagline'] ||
-        'Multiple AI models. One smarter workspace.',
+        'Free AI models in one app. Upgrade only for flagship power.',
     ),
     announcement: String(settings['content.announcement'] || ''),
   };
