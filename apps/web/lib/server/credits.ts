@@ -110,6 +110,7 @@ export function modelCredits(
   policy: DbPolicy,
   feature: CreditFeature = 'chat',
 ) {
+  if (model.free_endpoint === true) return 0;
   const bound = requestCostBound(model, policy, feature);
   if (!Number.isFinite(bound)) return null;
   return Math.max(
@@ -120,6 +121,7 @@ export function modelCredits(
 
 export function autoCredits(policy: DbPolicy, feature: CreditFeature = 'chat') {
   const routing = policy.routing ?? {};
+  if (routing.freeEndpointPool === true) return 0;
   const value = Number(
     feature === 'image_generation'
       ? routing.imageCreditCost
@@ -310,21 +312,26 @@ export function chooseAutoModels(
   const ids = Array.isArray(routing.allowedModelIds)
     ? routing.allowedModelIds.map(String)
     : [];
-  const budgetCredits = autoCredits(policy, 'chat');
-  if (!budgetCredits) return [];
-  const budget = budgetCredits * PROVIDER_USD_PER_CREDIT;
+  const freePool = routing.freeEndpointPool === true;
+  const budgetCredits = freePool ? null : autoCredits(policy, 'chat');
+  if (!freePool && (budgetCredits === null || budgetCredits === undefined))
+    return [];
+  const budget =
+    budgetCredits === null ? Infinity : budgetCredits * PROVIDER_USD_PER_CREDIT;
   const required = [...new Set(context.requiredCapabilities ?? [])];
 
   return models
     .filter(
       (model) =>
-        (routing.freeEndpointPool === true
+        (freePool
           ? isFreeEndpointEligible(model, feature, 'auto')
-          : ids.includes(model.id) && model.auto_available && modelOperational(model)) &&
+          : ids.includes(model.id) &&
+            model.auto_available &&
+            modelOperational(model)) &&
         required.every((capability) =>
           capabilityAvailable(model, capability),
         ) &&
-        requestCostBound(model, policy) <= budget + 1e-10,
+        (freePool || requestCostBound(model, policy) <= budget + 1e-10),
     )
     .sort((a, b) => {
       const fit = autoFitScore(b, context) - autoFitScore(a, context);
