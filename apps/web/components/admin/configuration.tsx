@@ -67,6 +67,7 @@ const modelFields: Field[] = [
     type: 'checkbox',
   },
   { key: 'autoAvailable', label: 'Available to Auto', type: 'checkbox' },
+  { key: 'freeEndpoint', label: 'Verified free endpoint', type: 'checkbox' },
   {
     key: 'defaultReasoningLevel',
     label: 'Default reasoning level',
@@ -268,6 +269,7 @@ const defaults: Record<Kind, Values> = {
     maintenance: false,
     manualAvailable: true,
     autoAvailable: false,
+    freeEndpoint: false,
     reasoningLevels: ['low'],
     defaultReasoningLevel: 'low',
     capabilityStates: '{}',
