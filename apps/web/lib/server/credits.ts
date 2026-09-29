@@ -154,6 +154,22 @@ function capabilityAvailable(model: DbModel, capability: string) {
   );
 }
 
+export function isFreeEndpointEligible(
+  model: DbModel,
+  feature: CreditFeature = 'chat',
+  access: 'manual' | 'auto' = 'manual',
+) {
+  return (
+    model.free_endpoint === true &&
+    (access === 'auto' ? model.auto_available : model.manual_available) &&
+    modelOperational(model) &&
+    capabilityAvailable(
+      model,
+      feature === 'image_generation' ? 'image_generation' : 'text',
+    )
+  );
+}
+
 export function modelOperational(model: DbModel) {
   if (
     !model.enabled ||
@@ -289,9 +305,9 @@ export function chooseAutoModels(
   return models
     .filter(
       (model) =>
-        ids.includes(model.id) &&
-        model.auto_available &&
-        modelOperational(model) &&
+        (routing.freeEndpointPool === true
+          ? isFreeEndpointEligible(model, feature, 'auto')
+          : ids.includes(model.id) && model.auto_available && modelOperational(model)) &&
         required.every((capability) =>
           capabilityAvailable(model, capability),
         ) &&

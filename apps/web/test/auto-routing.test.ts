@@ -67,6 +67,13 @@ function policy(ids: string[]): DbPolicy {
   };
 }
 
+function freePoolPolicy(): DbPolicy {
+  return {
+    ...policy([]),
+    routing: { creditCost: 1, freeEndpointPool: true },
+  };
+}
+
 describe('smart Auto routing', () => {
   beforeEach(() => {
     process.env.OPENAI_API_KEY = 'test';
@@ -189,5 +196,61 @@ describe('smart Auto routing', () => {
         { prompt: 'Debug this code and review the function.' },
       )?.id,
     ).toBe('nvidia-code');
+  });
+
+  it('free Auto excludes premium models', () => {
+    const premium = model({
+      id: 'premium',
+      provider: 'OPENAI',
+      display_name: 'Premium flagship',
+      quality_tier: 4,
+      free_endpoint: false,
+    });
+    const free = model({
+      id: 'free',
+      provider: 'OPENAI',
+      display_name: 'Verified free endpoint',
+      quality_tier: 1,
+      free_endpoint: true,
+    });
+
+    expect(
+      chooseAutoModel([premium, free], freePoolPolicy(), 'chat', {
+        prompt: 'Answer this question.',
+      })?.id,
+    ).toBe('free');
+  });
+
+  it('free Auto excludes unhealthy and unconfigured endpoints', () => {
+    const unhealthy = model({
+      id: 'unhealthy-free',
+      provider: 'NVIDIA',
+      display_name: 'Unhealthy free endpoint',
+      free_endpoint: true,
+      health_status: 'DEGRADED',
+    });
+    const unconfigured = model({
+      id: 'unconfigured-free',
+      provider: 'ANTHROPIC',
+      display_name: 'Unconfigured free endpoint',
+      free_endpoint: true,
+    });
+
+    expect(
+      chooseAutoModel([unhealthy, unconfigured], freePoolPolicy(), 'chat'),
+    ).toBeUndefined();
+  });
+
+  it('free Auto includes marked non-NVIDIA endpoints', () => {
+    const free = model({
+      id: 'google-free',
+      provider: 'GOOGLE',
+      display_name: 'Google free endpoint',
+      free_endpoint: true,
+    });
+
+    expect(chooseAutoModel([free], freePoolPolicy(), 'chat')?.id).toBe(
+      'google-free',
+    );
   });
 });
