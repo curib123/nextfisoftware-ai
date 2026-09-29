@@ -305,7 +305,7 @@ export function SavedPrompts() {
               <button
                 className="secondary-button"
                 onClick={() => {
-                  sessionStorage.setItem('vrompt-insert-prompt', item.content);
+                  sessionStorage.setItem('nextfi-insert-prompt', item.content);
                   router.push('/chat');
                 }}
               >
