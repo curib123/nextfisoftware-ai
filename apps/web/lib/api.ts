@@ -30,7 +30,7 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const { accessToken, ...init } = options;
   const headers = new Headers(init.headers);
-  headers.set('X-Vrompt-Client', 'web');
+  headers.set('X-Nextfi-Client', 'web');
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
   if (init.body && !(init.body instanceof FormData))
     headers.set('Content-Type', 'application/json');
@@ -42,7 +42,7 @@ export async function apiRequest<T>(
   const body = await response.json().catch(() => null);
   if (response.status === 401 && accessToken && typeof window !== 'undefined')
     window.dispatchEvent(
-      new CustomEvent('vrompt:session-expired', { detail: accessToken }),
+      new CustomEvent('nextfi:session-expired', { detail: accessToken }),
     );
   if (!response.ok)
     throw new ApiError(
