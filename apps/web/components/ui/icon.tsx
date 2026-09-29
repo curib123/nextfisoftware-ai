@@ -1,6 +1,7 @@
 import type { LucideIcon, LucideProps } from 'lucide-react';
 import {
   ArrowRight,
+  BookmarkPlus,
   Box,
   ChartNoAxesColumn,
   Check,
@@ -30,6 +31,7 @@ import {
 
 const icons = {
   plus: Plus,
+  save: BookmarkPlus,
   chat: MessageCirclePlus,
   history: History,
   folder: Folder,
