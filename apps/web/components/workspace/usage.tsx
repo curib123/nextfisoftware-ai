@@ -68,6 +68,7 @@ function RemainingMeter({
 export function UsagePage() {
   const resource = useWorkspaceResource<Usage>('/workspace/usage');
   const usage = resource.data;
+  const freePlan = usage?.plan.toLowerCase() === 'free';
   const creditLimit = count(usage?.credits?.limit ?? 0);
   const creditRemaining = Math.min(
     count(usage?.credits?.remaining ?? 0),
@@ -110,42 +111,55 @@ export function UsagePage() {
               aria-labelledby="usage-credit-title"
             >
               <div className="usage-card-heading">
-                <h2 id="usage-credit-title">Monthly credits</h2>
+                <h2 id="usage-credit-title">
+                  {freePlan ? 'Free model access' : 'Premium credits'}
+                </h2>
                 <span className="usage-plan">{usage.plan}</span>
               </div>
-              {usage.credits ? (
+              {freePlan ? (
+                <>
+                  <p className="usage-credit-total">
+                    <strong>0</strong>
+                    <span>credits required for verified free models</span>
+                  </p>
+                  <p className="usage-credit-note">
+                    Free endpoints never spend Nextfi credits. Request, rate,
+                    and provider availability limits still protect the shared
+                    service from abuse and upstream outages.
+                  </p>
+                </>
+              ) : usage.credits ? (
                 <>
                   <p className="usage-credit-total">
                     <strong>{creditRemaining.toLocaleString()}</strong>
                     <span>
                       {' '}
-                      / {creditLimit.toLocaleString()} monthly credits remaining
+                      / {creditLimit.toLocaleString()} premium credits remaining
                     </span>
                   </p>
                   {creditLimit > 0 && (
                     <progress
                       className="usage-meter"
-                      aria-label="Monthly credits remaining"
-                      aria-valuetext={`${creditRemaining.toLocaleString()} of ${creditLimit.toLocaleString()} credits remaining`}
+                      aria-label="Premium credits remaining"
+                      aria-valuetext={`${creditRemaining.toLocaleString()} of ${creditLimit.toLocaleString()} premium credits remaining`}
                       max={creditLimit}
                       value={creditRemaining}
                     />
                   )}
                   <p className="usage-credit-note">
                     {creditLimit === 0
-                      ? 'No monthly credits are included in this plan.'
-                      : `${creditUsed.toLocaleString()} used${creditReserved ? ` · ${creditReserved.toLocaleString()} pending` : ''} · Shared across all models.`}
+                      ? 'No premium credits are included in this plan.'
+                      : `${creditUsed.toLocaleString()} used${creditReserved ? ` · ${creditReserved.toLocaleString()} pending` : ''} · Free models remain 0 credits.`}
                   </p>
                   {creditLimit > 0 && creditRemaining === 0 && (
                     <p className="usage-limit-notice" role="status">
-                      You’ve used your monthly credits. Your balance renews at
-                      the monthly reset.
+                      Your premium balance is empty. Free models still work.
                     </p>
                   )}
                 </>
               ) : (
                 <p className="muted">
-                  This plan uses the message limits shown below.
+                  This plan uses the request limits shown below.
                 </p>
               )}
             </section>
@@ -223,10 +237,13 @@ export function UsagePage() {
                             <p>
                               {allowance.creditCosts.chat === null
                                 ? 'Chat pricing unavailable'
-                                : `${allowance.creditCosts.chat} ${allowance.creditCosts.chat === 1 ? 'credit' : 'credits'} per chat response`}
+                                : allowance.creditCosts.chat === 0
+                                  ? 'Free · 0 Nextfi credits'
+                                  : `${allowance.creditCosts.chat} ${allowance.creditCosts.chat === 1 ? 'premium credit' : 'premium credits'} per chat response`}
                               {allowance.creditCosts.image_generation !==
-                                null &&
-                                ` · ${allowance.creditCosts.image_generation} credits per image request`}
+                                  null &&
+                                allowance.creditCosts.image_generation !== 0 &&
+                                ` · ${allowance.creditCosts.image_generation} premium credits per image request`}
                             </p>
                           )}
                           {limitReached && (
@@ -284,19 +301,18 @@ export function UsagePage() {
           <details className="usage-explanation">
             <summary>How usage is counted</summary>
             <p>
-              Each response uses a message from the selected model’s daily and
-              monthly limits, plus any shared credits required by that model.
-              Auto has its own message limits. Credit prices vary by model and
-              task; the charge is shown in chat before you send. Model limits do
-              not add extra credits to your shared balance.
+              Verified free endpoints use 0 Nextfi credits. Requests can still
+              count toward fair-use, rate, and provider limits. Premium
+              flagship models use credits based on the selected model and task,
+              and the cost is shown before you send.
             </p>
             <p>
               Responses in progress reserve their allowance. A stopped response
               may count if processing has already occurred.
             </p>
             <p>
-              Monthly credits renew on the first day of each month at 00:00 UTC.
-              Unused monthly credits do not roll over.
+              Premium credits renew with the plan schedule and do not roll
+              over. Free model access does not depend on the premium balance.
             </p>
           </details>
         </>
