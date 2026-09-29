@@ -1,5 +1,5 @@
 {
-  "name": "vrompt",
+  "name": "nextfi-software",
   "version": "0.0.0",
   "private": true,
   "packageManager": "npm@10.9.0",
@@ -8,15 +8,15 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace @vrompt/web",
-    "build": "npm run build --workspace @vrompt/web",
-    "lint": "npm run lint --workspace @vrompt/web",
-    "typecheck": "npm run typecheck --workspace @vrompt/web",
-    "test": "npm run test --workspace @vrompt/web",
-    "test:e2e": "npm run test:e2e --workspace @vrompt/web",
+    "dev": "npm run dev --workspace @nextfi/web",
+    "build": "npm run build --workspace @nextfi/web",
+    "lint": "npm run lint --workspace @nextfi/web",
+    "typecheck": "npm run typecheck --workspace @nextfi/web",
+    "test": "npm run test --workspace @nextfi/web",
+    "test:e2e": "npm run test:e2e --workspace @nextfi/web",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
-    "clean": "npm run clean --workspace @vrompt/web"
+    "clean": "npm run clean --workspace @nextfi/web"
   },
   "devDependencies": {
     "prettier": "^3.3.3"
