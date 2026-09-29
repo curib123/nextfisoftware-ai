@@ -261,7 +261,9 @@ export async function workspaceModels(user: Authenticated) {
     .filter((model) => {
       const policy = policyByModel.get(model.id);
       const freeAvailable =
-        freePlan && isFreeEndpointEligible(model, 'chat', 'manual');
+        freePlan &&
+        (isFreeEndpointEligible(model, 'chat', 'manual') ||
+          isFreeEndpointEligible(model, 'image_generation', 'manual'));
       const providerHealthy =
         model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY';
       const planAvailable = Boolean(
@@ -284,7 +286,9 @@ export async function workspaceModels(user: Authenticated) {
     .map((model) => {
       const policy = policyByModel.get(model.id);
       const freeAvailable =
-        freePlan && isFreeEndpointEligible(model, 'chat', 'manual');
+        freePlan &&
+        (isFreeEndpointEligible(model, 'chat', 'manual') ||
+          isFreeEndpointEligible(model, 'image_generation', 'manual'));
       const effectivePolicy =
         policy ??
         (freeAvailable && freePolicy
