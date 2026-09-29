@@ -17,12 +17,15 @@ export function useWorkspaceResource<T>(
   const { accessToken } = useAuth();
   const cacheKey = accessToken ? `${accessToken}:${path}` : '';
   const cached = cacheKey ? resourceCache.get(cacheKey) : undefined;
-  const [result, setResult] = useState<{
-    path: string;
-    token: string;
-    data?: T;
-    error?: string;
-  }>(() =>
+  const [result, setResult] = useState<
+    | {
+        path: string;
+        token: string;
+        data?: T;
+        error?: string;
+      }
+    | undefined
+  >(() =>
     accessToken && cached
       ? { path, token: accessToken, data: cached.data as T }
       : undefined,
@@ -41,9 +44,12 @@ export function useWorkspaceResource<T>(
     );
 
     if (warm) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResult({ path, token: accessToken, data: warm.data as T });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(true);
     }
 
