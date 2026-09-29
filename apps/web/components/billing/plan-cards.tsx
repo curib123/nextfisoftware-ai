@@ -129,11 +129,24 @@ export function PlanCards({
                   ? 'Free Auto routing across verified free endpoints'
                   : 'Smart Auto routing across your eligible model pool'}
               </li>
-              {auto && (
-                <li>
-                  <Icon name="check" />
-                  Up to {auto.dailyLimit.toLocaleString()} Auto requests per day
-                </li>
+              {free ? (
+                <>
+                  <li>
+                    <Icon name="check" />
+                    Generous fair-use access instead of a credit meter
+                  </li>
+                  <li>
+                    <Icon name="check" />
+                    Image, PDF, and text-file uploads on compatible free models
+                  </li>
+                </>
+              ) : (
+                auto && (
+                  <li>
+                    <Icon name="check" />
+                    Up to {auto.dailyLimit.toLocaleString()} Auto requests per day
+                  </li>
+                )
               )}
               {free ? (
                 <li>
@@ -149,11 +162,18 @@ export function PlanCards({
                   </li>
                 )
               )}
-              {Boolean(plan.manualModelCount) && (
+              {free ? (
                 <li>
                   <Icon name="check" />
-                  {plan.manualModelCount} models with manual selection
+                  Manual selection across verified free endpoints
                 </li>
+              ) : (
+                Boolean(plan.manualModelCount) && (
+                  <li>
+                    <Icon name="check" />
+                    {plan.manualModelCount} premium models with manual selection
+                  </li>
+                )
               )}
               <li>
                 <Icon name="check" />
