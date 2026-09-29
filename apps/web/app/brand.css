@@ -4071,3 +4071,37 @@ html {
     max-width: 86px;
   }
 }
+
+/* Nextfi landing proof points */
+.hero-proof-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.hero-proof-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 7px 10px;
+  border: 1px solid var(--brand-soft);
+  border-radius: 999px;
+  background: var(--brand-surface);
+  color: var(--brand-mid);
+  font-size: 11px;
+  font-weight: 600;
+}
+.hero-proof-row svg {
+  width: 14px;
+  height: 14px;
+  color: var(--brand-teal-deep);
+}
+@media (max-width: 720px) {
+  .hero-proof-row {
+    gap: 8px;
+  }
+  .hero-proof-row span {
+    font-size: 10px;
+  }
+}
