@@ -150,8 +150,8 @@ export function Landing() {
               <em>One smarter way to work.</em>
             </h1>
             <p>
-              Use shared free models, connect your own provider keys, or let
-              <strong> Auto</strong> route each prompt to the best healthy model
+              Use shared free models, connect your own provider keys, or let{' '}
+              <strong>Auto</strong> route each prompt to the best healthy model
               available—without jumping between apps.
             </p>
             <div className="brand-hero-actions">
@@ -166,10 +166,19 @@ export function Landing() {
               <Icon name="check" />
               Free workspace. No card required to get started.
             </div>
-            <div className="hero-proof-row" aria-label="Nextfi Software highlights">
-              <span><Icon name="check" /> Free model access</span>
-              <span><Icon name="workflow" /> Smart Auto routing</span>
-              <span><Icon name="shield" /> Private BYO keys</span>
+            <div
+              className="hero-proof-row"
+              aria-label="Nextfi Software highlights"
+            >
+              <span>
+                <Icon name="check" /> Free model access
+              </span>
+              <span>
+                <Icon name="workflow" /> Smart Auto routing
+              </span>
+              <span>
+                <Icon name="shield" /> Private BYO keys
+              </span>
             </div>
           </div>
           <aside className="hero-hub" aria-labelledby="hub-title">
