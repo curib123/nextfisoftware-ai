@@ -170,6 +170,19 @@ export function isFreeEndpointEligible(
   );
 }
 
+export function resolveFreeManualModel(
+  models: DbModel[],
+  policy: DbPolicy,
+  modelId: string | null,
+  feature: CreditFeature = 'chat',
+) {
+  if (!policy.enabled || policy.bucket !== 'AUTO' || !modelId) return undefined;
+  const model = models.find((item) => item.id === modelId);
+  return model && isFreeEndpointEligible(model, feature, 'manual')
+    ? model
+    : undefined;
+}
+
 export function modelOperational(model: DbModel) {
   if (
     !model.enabled ||
