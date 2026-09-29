@@ -1,6 +1,6 @@
-# AI capabilities in Vrompt
+# AI capabilities in Nextfi Software
 
-Vrompt integrates provider APIs. Selecting a model does not reproduce every feature of the provider's consumer application. Capabilities must be configured for the exact model and supported by a Vrompt adapter.
+Nextfi Software integrates provider APIs. Selecting a model does not reproduce every feature of the provider's consumer application. Capabilities must be configured for the exact model and supported by a Nextfi Software adapter.
 
 ## Implemented
 

@@ -1,6 +1,6 @@
-# Vrompt: Next.js + Supabase architecture
+# Nextfi Software: Next.js + Supabase architecture
 
-Vrompt is a single full-stack Next.js application designed for serverless
+Nextfi Software is a single full-stack Next.js application designed for serverless
 deployment.
 
 ## Runtime
@@ -12,7 +12,7 @@ deployment.
 - **Authentication:** Supabase Auth with Google/GitHub OAuth for users and a
   separate staff password flow.
 - **Files:** private Supabase Storage bucket (`vrompt-private`).
-- **AI:** provider calls are made only from Next.js server code. Shared provider keys never reach the browser. Users may optionally save their own provider keys; Vrompt encrypts them server-side with AES-256-GCM and never returns plaintext credentials.
+- **AI:** provider calls are made only from Next.js server code. Shared provider keys never reach the browser. Users may optionally save their own provider keys; Nextfi Software encrypts them server-side with AES-256-GCM and never returns plaintext credentials.
 - **Payments:** PayMongo checkout + signed webhooks.
 - **Caching / quotas:** Postgres-backed atomic reservations remove the Redis requirement and work on serverless deployments.
 
@@ -40,25 +40,25 @@ application uses:
 - `GET /auth/callback` to exchange the PKCE authorization code
 - an HttpOnly refresh cookie for session renewal
 
-The Google provider must be enabled separately in the Vrompt Supabase project's
+The Google provider must be enabled separately in the Nextfi Software Supabase project's
 Auth settings because provider credentials are not stored in SQL migrations.
 
 ## Cost controls
 
-Vrompt budgets **$0.008 of provider cost per credit**. Manual models calculate credits from configured input/output limits and provider rates. Auto mode uses a low-cost pool and only selects models whose bounded provider cost fits the credit budget.
+Nextfi Software budgets **$0.008 of provider cost per credit**. Manual models calculate credits from configured input/output limits and provider rates. Auto mode uses the plan's eligible pool and only selects models whose bounded provider cost fits the credit budget.
 
 Default plans:
 
 | Plan | Price | Credits | Maximum modeled provider budget |
 | --- | ---: | ---: | ---: |
-| Free (verified NVIDIA + Mistral fallback) | $0 | 30 | $0.24 shared-provider ceiling |
+| Free (verified free endpoints) | $0 | 30 | $0.24 shared-provider ceiling |
 | Starter | $5.99 | 100 | $0.80 |
 | Pro | $11.99 | 250 | $2.00 |
 | Max | $24.99 | 600 | $4.80 |
 
-Free Auto considers only NVIDIA models that have passed Vrompt's real completion health check; Mistral is retained as the fallback. The NVIDIA developer catalog is synchronized by an administrator in bounded batches so unavailable or non-chat endpoints remain disabled.
+Free Auto considers every enabled model explicitly marked as a free endpoint. NVIDIA discovered models must pass Nextfi Software's real completion health check; other providers are marked free by an administrator. The NVIDIA developer catalog is synchronized in bounded batches so unavailable or non-chat endpoints remain disabled.
 
-BYO requests use a separate zero-credit quota bucket. They do not add provider spend to Vrompt's cost ledger because the user owns the provider account, but they still use Vrompt rate, concurrency, input, file, and timeout limits.
+BYO requests use a separate zero-credit quota bucket. They do not add provider spend to Nextfi Software's cost ledger because the user owns the provider account, but they still use Nextfi Software rate, concurrency, input, file, and timeout limits.
 
 Free-user shared-provider spend must still be treated as acquisition cost. Track conversion and contribution margin in the admin analytics view before increasing free allowances.
 
@@ -78,7 +78,8 @@ OPENAI_API_KEY=
 GOOGLE_AI_API_KEY=
 ANTHROPIC_API_KEY=
 
-VROMPT_CREDENTIAL_ENCRYPTION_KEY=
+NEXTFI_CREDENTIAL_ENCRYPTION_KEY=
+# Legacy fallback: VROMPT_CREDENTIAL_ENCRYPTION_KEY
 
 PAYMONGO_MODE=test
 PAYMONGO_SECRET_KEY=sk_test_...
@@ -91,7 +92,7 @@ payment secrets in a `NEXT_PUBLIC_` variable.
 
 ## Supabase setup
 
-Use the dedicated Vrompt Supabase project and keep its migration history aligned
+Use the dedicated Nextfi Software Supabase project and keep its migration history aligned
 with `supabase/migrations`.
 
 The current migration head is:

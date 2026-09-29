@@ -47,17 +47,19 @@ function parseProvider(value: unknown): ProviderName {
   return provider as ProviderName;
 }
 
-function credentialEncryptionKey() {
-  const encoded = process.env.VROMPT_CREDENTIAL_ENCRYPTION_KEY?.trim();
+export function credentialEncryptionKey() {
+  const encoded =
+    process.env.NEXTFI_CREDENTIAL_ENCRYPTION_KEY?.trim() ||
+    process.env.VROMPT_CREDENTIAL_ENCRYPTION_KEY?.trim();
   if (!encoded)
     throw new ApiError(
-      'BYO API keys are not available until VROMPT_CREDENTIAL_ENCRYPTION_KEY is configured.',
+      'BYO API keys are not available until NEXTFI_CREDENTIAL_ENCRYPTION_KEY is configured.',
       503,
     );
   const key = Buffer.from(encoded, 'base64');
   if (key.length !== 32)
     throw new Error(
-      'VROMPT_CREDENTIAL_ENCRYPTION_KEY must be a base64-encoded 32-byte key.',
+      'NEXTFI_CREDENTIAL_ENCRYPTION_KEY must be a base64-encoded 32-byte key.',
     );
   return key;
 }

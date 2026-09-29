@@ -1,6 +1,6 @@
 # Auto routing
 
-Auto applies the plan's explicit model pool, enabled credentials/configuration, capability and context requirements, quality rules, and temporary model cooldowns before ranking. An explicit fallback cannot bypass these filters. Manual selections never switch models automatically.
+Auto applies the plan's explicit model pool, enabled credentials/configuration, capability and context requirements, quality rules, and temporary model cooldowns before ranking. Free plans may opt into the live `free_endpoint` registry with `freeEndpointPool: true`; premium models are never added to that pool. An explicit fallback cannot bypass these filters. Manual selections never switch models automatically.
 
 ## Policy configuration
 
@@ -9,6 +9,7 @@ The protected policy API accepts these fields under `routing`:
 ```json
 {
   "allowedModelIds": ["replace-with-an-existing-model-uuid"],
+  "freeEndpointPool": false,
   "attemptTimeoutSeconds": 30,
   "maxAttempts": 3,
   "minimumQualityTier": 1,
@@ -24,7 +25,7 @@ The protected policy API accepts these fields under `routing`:
 }
 ```
 
-Use actual registry UUIDs. An empty or missing pool disables Auto; newly registered models do not join existing pools automatically. Manual policies also accept this shape, with an empty pool. Unknown UUIDs are rejected. Production migrations provide a bounded starter pool for Free and Pro across all supported providers; missing keys remove unavailable candidates. Do not rerun the seed to update production policies.
+Use actual registry UUIDs for bounded paid pools. For Free, `freeEndpointPool: true` derives candidates from enabled models marked `free_endpoint = true`; newly verified free endpoints join the Free pool after health/configuration checks. An empty bounded pool disables Auto. Manual policies also accept this shape, with an empty pool. Unknown UUIDs are rejected. Do not rerun the seed to update production policies.
 
 Migration `0027_auto_model_pools` snapshots currently enabled Auto models into existing policies that lack a pool. This preserves existing access, including existing Free access; review each plan's pool after migration. It does not retroactively decide which of your models should be paid-only. Apply reviewed pending migrations before deploying this code, or older policies with missing pools will fail closed.
 
