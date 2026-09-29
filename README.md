@@ -1,4 +1,7 @@
-# Vrompt
+rename nextfi ai and new domain is https://www.nextfisoftware.com/
+
+
+# Vrompt 
 
 Vrompt is a private multi-model AI workspace built as one **Next.js full-stack application** with **Supabase Postgres/Auth/Storage**.
 
