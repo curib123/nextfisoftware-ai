@@ -94,7 +94,7 @@ const settingDefinitions: readonly SettingDefinition[] = [
     label: 'Tagline',
     description: 'Short value proposition shown on public pages.',
     type: 'string',
-    defaultValue: 'One workspace. The right AI for every task.',
+    defaultValue: 'Free AI models in one app. Upgrade only for flagship power.',
     maxLength: 160,
     public: true,
   },
