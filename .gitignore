@@ -42,6 +42,7 @@ pnpm-debug.log*
 .vrompt-dev.*.log
 
 # local tooling artifacts
+.worktrees/
 .npm-cache/
 .tmp-*.png
 package-lock.security.bak
