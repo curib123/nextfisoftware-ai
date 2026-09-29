@@ -884,6 +884,17 @@ export function AdminRegistry({ plans = false }: { plans?: boolean }) {
               </div>
             </div>
             <div className="row-actions">
+              {!plans && (
+                <span
+                  className={
+                    item.freeEndpoint
+                      ? 'model-free-badge'
+                      : 'model-premium-badge'
+                  }
+                >
+                  {item.freeEndpoint ? 'Free · 0 credits' : 'Premium'}
+                </span>
+              )}
               <span
                 className={`status-badge ${(plans ? item.isActive : item.enabled) ? 'active' : ''}`}
               >
