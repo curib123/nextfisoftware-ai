@@ -148,14 +148,15 @@ export function WorkspaceShell({
     : workspaceLinks;
   const accountName =
     user.username.trim() || user.email.split('@')[0]?.trim() || 'Account';
+  const accountParts = accountName.split(/\s+/).filter(Boolean);
   const accountInitials =
-    accountName
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase() || accountName.slice(0, 2).toUpperCase();
+    (accountParts.length > 1
+      ? accountParts
+          .slice(0, 2)
+          .map((part) => part[0])
+          .join('')
+      : accountName.slice(0, 2)
+    ).toUpperCase() || 'AC';
 
   return (
     <div className="workspace-shell">
