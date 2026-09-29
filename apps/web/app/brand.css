@@ -4454,3 +4454,74 @@ html {
   }
 }
 
+/* Clear free/premium access badges and compact composer status. */
+.model-premium-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--brand-azure) 28%, var(--brand-soft));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-azure) 7%, var(--brand-surface));
+  color: var(--brand-azure-deep);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.composer-status-copy {
+  min-width: 0;
+}
+.composer-status-skeleton {
+  display: inline-block;
+  width: min(240px, 56vw);
+  vertical-align: middle;
+}
+.composer-status-skeleton .skeleton-shimmer {
+  width: 100%;
+  height: 9px;
+}
+.conversation-option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--brand-soft);
+  border-bottom: 1px solid var(--brand-soft);
+}
+.conversation-option-row > div {
+  min-width: 0;
+}
+.conversation-option-row strong,
+.conversation-option-row small {
+  display: block;
+}
+.conversation-option-row strong {
+  color: var(--brand-ink);
+  font-size: 13px;
+}
+.conversation-option-row small {
+  margin-top: 4px;
+  color: var(--brand-mid);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.composer-actions {
+  gap: 4px;
+}
+.composer-attach,
+.composer-save-prompt,
+.composer-options-button {
+  width: 40px;
+  padding-inline: 0 !important;
+}
+.composer-attach:disabled,
+.composer-save-prompt:disabled,
+.composer-options-button:disabled {
+  opacity: 0.36;
+}
+.landing-model-skeletons {
+  margin-top: 4px;
+}
+
