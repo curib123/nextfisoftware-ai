@@ -9,7 +9,8 @@ import {
 const originalEnv = { ...process.env };
 
 function model(
-  overrides: Partial<DbModel> & Pick<DbModel, 'id' | 'provider' | 'display_name'>,
+  overrides: Partial<DbModel> &
+    Pick<DbModel, 'id' | 'provider' | 'display_name'>,
 ): DbModel {
   const { id, provider, display_name, ...rest } = overrides;
   return {

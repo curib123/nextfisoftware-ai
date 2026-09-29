@@ -13,9 +13,9 @@ const baseInput = {
 
 describe('free endpoint administration', () => {
   it('persists an explicit free endpoint flag', () => {
-    expect(modelMutationPayload({ ...baseInput, freeEndpoint: true }).free_endpoint).toBe(
-      true,
-    );
+    expect(
+      modelMutationPayload({ ...baseInput, freeEndpoint: true }).free_endpoint,
+    ).toBe(true);
   });
 
   it('defaults new models to non-free when the flag is omitted', () => {

@@ -48,7 +48,10 @@ describe('Auto candidate failover', () => {
     );
 
     expect(calls).toEqual(['first', 'second']);
-    expect(result).toEqual({ model: expect.objectContaining({ id: 'second' }), value: 'success' });
+    expect(result).toEqual({
+      model: expect.objectContaining({ id: 'second' }),
+      value: 'success',
+    });
   });
 
   it('stops after partial output', async () => {

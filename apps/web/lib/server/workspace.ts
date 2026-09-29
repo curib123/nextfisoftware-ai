@@ -1148,23 +1148,18 @@ export async function streamMessage(
     candidateModels = [model];
   } else {
     policy = findPolicy(cfg.policies, mode, modelId);
-    candidateModels =
-      mode === 'AUTO'
-        ? chooseAutoModels(cfg.models, policy, feature, {
-            prompt: content,
-            requiredCapabilities,
-          })
-        : resolveModel(cfg.models, policy, mode, feature, {
-            prompt: content,
-            requiredCapabilities,
-          })
-          ? [
-              resolveModel(cfg.models, policy, mode, feature, {
-                prompt: content,
-                requiredCapabilities,
-              })!,
-            ]
-          : [];
+    if (mode === 'AUTO') {
+      candidateModels = chooseAutoModels(cfg.models, policy, feature, {
+        prompt: content,
+        requiredCapabilities,
+      });
+    } else {
+      const resolved = resolveModel(cfg.models, policy, mode, feature, {
+        prompt: content,
+        requiredCapabilities,
+      });
+      candidateModels = resolved ? [resolved] : [];
+    }
     model = candidateModels[0];
   }
 
