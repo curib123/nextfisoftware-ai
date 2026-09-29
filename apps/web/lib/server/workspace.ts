@@ -1019,7 +1019,8 @@ async function generateOnce(
   system: string,
 ) {
   const creditUnits = modelCredits(model, policy, 'chat');
-  if (!creditUnits) throw new ApiError('This model does not have safe pricing configured.', 409);
+  if (creditUnits === null)
+    throw new ApiError('This model does not have safe pricing configured.', 409);
   const requestId = randomUUID();
   await reserve(user.profile.id, requestId, policy, plan, creditUnits, createHash('sha256').update(prompt).digest('hex'));
   const userMessage = await insertMessage(user, conversationId, 'user', prompt, 'SUCCEEDED', null, null, null, requestId);
@@ -1178,7 +1179,7 @@ export async function streamMessage(
     throw new ApiError('This model does not support image generation.', 403);
 
   const serverCredits =
-    mode === 'BYOK'
+    mode === 'BYOK' || model.free_endpoint === true
       ? 0
       : mode === 'AUTO'
         ? autoCredits(policy, feature)
@@ -1190,7 +1191,7 @@ export async function streamMessage(
     const maxCredits = integerValue(
       input.maxCredits ?? serverCredits,
       'Maximum credits',
-      1,
+      0,
       100000,
     );
     if (serverCredits > maxCredits)
