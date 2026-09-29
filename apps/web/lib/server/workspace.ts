@@ -433,6 +433,30 @@ export async function workspaceUsage(user: Authenticated) {
   };
 }
 
+export async function workspaceBootstrap(user: Authenticated) {
+  const request = new Request('https://nextfi.local/api/v1/workspace/bootstrap', {
+    method: 'GET',
+  });
+  const [catalog, models, usage, projects, prompts, preference] =
+    await Promise.all([
+      catalogModels(),
+      workspaceModels(user),
+      workspaceUsage(user),
+      projectsRoute(request, user),
+      promptsRoute(request, user),
+      preferences(request, user),
+    ]);
+
+  return {
+    catalog,
+    models,
+    usage,
+    projects,
+    prompts,
+    preferences: preference,
+  };
+}
+
 export async function preferences(request: Request, user: Authenticated) {
   if (request.method === 'GET') {
     const rows = await rest<
