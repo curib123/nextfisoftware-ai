@@ -184,19 +184,47 @@ function mapRun(row: RunRow) {
   };
 }
 
+type WorkspaceConfiguration = {
+  plan: DbPlan;
+  policies: DbPolicy[];
+  models: DbModel[];
+};
+
+const configurationCache = new Map<
+  string,
+  { expiresAt: number; value: Promise<WorkspaceConfiguration> }
+>();
+
 async function configuration(userId: string) {
-  const plan = await activePlan(userId);
-  const [policies, models] = await Promise.all([
-    rest<DbPolicy[]>('generation_policies', {
-      admin: true,
-      query: `plan_id=eq.${encodeURIComponent(plan.id)}&enabled=eq.true&select=*&order=bucket.asc`,
-    }),
-    rest<DbModel[]>('ai_models', {
-      admin: true,
-      query: `select=${modelSelect}`,
-    }),
-  ]);
-  return { plan, policies, models };
+  const cached = configurationCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const value = (async (): Promise<WorkspaceConfiguration> => {
+    const plan = await activePlan(userId);
+    const [policies, models] = await Promise.all([
+      rest<DbPolicy[]>('generation_policies', {
+        admin: true,
+        query: `plan_id=eq.${encodeURIComponent(plan.id)}&enabled=eq.true&select=*&order=bucket.asc`,
+      }),
+      rest<DbModel[]>('ai_models', {
+        admin: true,
+        query: `select=${modelSelect}`,
+      }),
+    ]);
+    return { plan, policies, models };
+  })();
+
+  configurationCache.set(userId, {
+    expiresAt: Date.now() + 5_000,
+    value,
+  });
+
+  try {
+    return await value;
+  } catch (error) {
+    configurationCache.delete(userId);
+    throw error;
+  }
 }
 
 function periods(now = new Date()) {
