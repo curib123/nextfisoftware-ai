@@ -26,6 +26,8 @@ import { PlanBadge } from '@/components/billing/plan-badge';
 import { Modal } from '@/components/ui/modal';
 import { CardSkeletons } from '@/components/ui/skeleton';
 
+let landingCatalogCache: Model[] | undefined;
+
 export const starterTasks: {
   key: string;
   title: string;
@@ -57,8 +59,10 @@ export function Landing() {
   const { user } = useAuth();
   const { openLogin } = useAuthDialog();
   const router = useRouter();
-  const [models, setModels] = useState<Model[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [models, setModels] = useState<Model[]>(
+    () => landingCatalogCache ?? [],
+  );
+  const [loaded, setLoaded] = useState(Boolean(landingCatalogCache));
   const [catalogError, setCatalogError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
@@ -69,6 +73,7 @@ export function Landing() {
     const controller = new AbortController();
     void apiRequest<Model[]>('/catalog/models', { signal: controller.signal })
       .then((data) => {
+        landingCatalogCache = data;
         setModels(data);
         setLoaded(true);
         setCatalogError(false);
