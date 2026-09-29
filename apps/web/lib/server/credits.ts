@@ -297,8 +297,24 @@ export function chooseAutoModels(
   context: AutoRouteContext = {},
 ) {
   const routing = policy.routing ?? {};
+  const freePool = routing.freeEndpointPool === true;
 
   if (feature === 'image_generation') {
+    if (freePool) {
+      return models
+        .filter((model) =>
+          isFreeEndpointEligible(model, 'image_generation', 'auto'),
+        )
+        .sort((a, b) => {
+          const fit = autoFitScore(b, context) - autoFitScore(a, context);
+          if (Math.abs(fit) > 1e-9) return fit;
+          return (
+            b.quality_tier - a.quality_tier ||
+            b.routing_priority - a.routing_priority
+          );
+        });
+    }
+
     const imageId = String(routing.imageModelId ?? '');
     const image = models.find(
       (model) =>
@@ -312,7 +328,6 @@ export function chooseAutoModels(
   const ids = Array.isArray(routing.allowedModelIds)
     ? routing.allowedModelIds.map(String)
     : [];
-  const freePool = routing.freeEndpointPool === true;
   const budgetCredits = freePool ? null : autoCredits(policy, 'chat');
   if (!freePool && (budgetCredits === null || budgetCredits === undefined))
     return [];
