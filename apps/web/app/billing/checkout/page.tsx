@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { apiRequest } from '@/lib/api';
 import { useAuth } from '@/components/providers/auth-provider';
 import { SignInButton } from '@/components/providers/auth-dialog-provider';
+import { ResourceSkeleton } from '@/components/ui/skeleton';
 function PaymentStatus() {
   const { accessToken } = useAuth();
   const id = useSearchParams().get('payment');
@@ -59,7 +60,13 @@ function PaymentStatus() {
 }
 export default function Checkout() {
   return (
-    <Suspense fallback={<p role="status">Loading payment…</p>}>
+    <Suspense
+      fallback={
+        <main className="center-page">
+          <ResourceSkeleton rows={3} />
+        </main>
+      }
+    >
       <PaymentStatus />
     </Suspense>
   );
