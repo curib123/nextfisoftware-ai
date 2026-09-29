@@ -45,7 +45,7 @@ Add tests named `free Auto excludes premium models`, `free Auto excludes unhealt
 
 - [ ] **Step 2: Run the focused tests and verify RED**
 
-Run: `npm test --workspace @vrompt/web -- auto-routing.test.ts`
+Run: `npm test --workspace @nextfi/web -- auto-routing.test.ts`
 
 Expected: the new tests fail because the routing policy does not understand `freeEndpointPool` and no shared Free eligibility predicate exists.
 
@@ -55,7 +55,7 @@ Add the shared eligibility predicate using `free_endpoint`, enabled/maintenance 
 
 - [ ] **Step 4: Run the focused tests and verify GREEN**
 
-Run: `npm test --workspace @vrompt/web -- auto-routing.test.ts`
+Run: `npm test --workspace @nextfi/web -- auto-routing.test.ts`
 
 Expected: all Auto routing tests pass.
 
@@ -84,7 +84,7 @@ Add unit-level access tests for `free manual selection accepts a marked endpoint
 
 - [ ] **Step 2: Run the focused tests and verify RED**
 
-Run: `npm test --workspace @vrompt/web -- free-access.test.ts`
+Run: `npm test --workspace @nextfi/web -- free-access.test.ts`
 
 Expected: the free model is currently rejected because manual mode requires a model-specific policy row, and the premium model is not distinguished by the Free entitlement path.
 
@@ -94,7 +94,7 @@ In `streamMessage`, resolve Free manual selections against the shared Free Auto 
 
 - [ ] **Step 4: Run focused and existing tests**
 
-Run: `npm test --workspace @vrompt/web -- free-access.test.ts auto-routing.test.ts`
+Run: `npm test --workspace @nextfi/web -- free-access.test.ts auto-routing.test.ts`
 
 Expected: the new access tests and existing routing tests pass.
 
@@ -122,7 +122,7 @@ Add tests named `Auto tries the next candidate after a pre-output retryable fail
 
 - [ ] **Step 2: Run the focused tests and verify RED**
 
-Run: `npm test --workspace @vrompt/web -- auto-failover.test.ts`
+Run: `npm test --workspace @nextfi/web -- auto-failover.test.ts`
 
 Expected: the current generation flow invokes only the first selected model, so the pre-output fallback test fails.
 
@@ -132,7 +132,7 @@ Have Auto retain the ordered candidate list, cap attempts at the policy setting 
 
 - [ ] **Step 4: Run the focused tests and the full unit suite**
 
-Run: `npm test --workspace @vrompt/web -- auto-failover.test.ts auto-routing.test.ts`; then `npm test --workspace @vrompt/web`.
+Run: `npm test --workspace @nextfi/web -- auto-failover.test.ts auto-routing.test.ts`; then `npm test --workspace @nextfi/web`.
 
 Expected: failover tests pass and the complete Vitest suite exits with zero failures.
 
@@ -161,7 +161,7 @@ Extract and export the pure `modelMutationPayload` helper from `admin.ts`, then 
 
 - [ ] **Step 2: Run focused tests and verify RED**
 
-Run: `npm test --workspace @vrompt/web -- admin-models.test.ts`
+Run: `npm test --workspace @nextfi/web -- admin-models.test.ts`
 
 Expected: the current admin payload omits `free_endpoint`, and NVIDIA sync still hard-codes the Mistral fallback.
 
@@ -171,7 +171,7 @@ Add the checkbox to the existing admin model form and API payload. Remove the fi
 
 - [ ] **Step 4: Run focused tests and typecheck**
 
-Run the focused test file and `npm run typecheck --workspace @vrompt/web`.
+Run the focused test file and `npm run typecheck --workspace @nextfi/web`.
 
 Expected: focused checks pass and TypeScript reports no errors.
 
@@ -233,7 +233,7 @@ git commit -m "db: allow Free access to verified endpoints"
 **Interfaces:**
 - Product-facing defaults display “Nextfi Software”.
 - Free model UI uses `model.freeEndpoint`/`planAvailable` generically instead of Mistral/NVIDIA special cases.
-- Existing `vrompt-*` session/local-storage/cookie identifiers remain unchanged.
+- Rename browser-facing identifiers to `nextfi-*` where safe, while retaining targeted legacy reads only when needed to migrate existing user state.
 
 - [ ] **Step 1: Add/update failing UI assertions**
 
@@ -241,9 +241,9 @@ Update relevant tests to expect Nextfi Software, generic verified-free copy, and
 
 - [ ] **Step 2: Run focused UI tests and verify RED**
 
-Run: `npm test --workspace @vrompt/web -- workspace-topbar.test.tsx google-auth.test.tsx`
+Run: `npm test --workspace @nextfi/web -- workspace-topbar.test.tsx google-auth.test.tsx`
 
-Expected: the current visible Vrompt copy and provider-specific Free copy fail the new assertions.
+Expected: the legacy product copy and provider-specific Free copy fail the new assertions.
 
 - [ ] **Step 3: Implement the copy and UI changes**
 
