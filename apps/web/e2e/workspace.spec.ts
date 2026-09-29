@@ -59,7 +59,7 @@ const plans = {
     },
     {
       id: 'PRO',
-      name: 'Vrompt Pro',
+      name: 'Nextfi Pro',
       description: 'More room for your work.',
       priceCentavos: 599,
       currency: 'USD',
@@ -224,7 +224,7 @@ async function mockApi(
       };
     } else if (path === '/settings/public')
       body = {
-        'branding.siteName': 'Vrompt',
+        'branding.siteName': 'Nextfi Software',
         'workspace.writePrompt': 'A configured writing starter.',
       };
     else if (path === '/catalog/models' || path === '/workspace/models')
@@ -352,7 +352,7 @@ test('chat honors send-button preference and preserves the chosen model on first
 
 test('admin settings save and refresh the visible brand', async ({ page }) => {
   await mockApi(page, 'ADMIN');
-  let name = 'Vrompt';
+  let name = 'Nextfi Software';
   await page.route('**/settings/public', (route) =>
     route.fulfill({ json: { 'branding.siteName': name } }),
   );
@@ -366,7 +366,7 @@ test('admin settings save and refresh the visible brand', async ({ page }) => {
           description: 'Public workspace name',
           type: 'string',
           value: name,
-          defaultValue: 'Vrompt',
+          defaultValue: 'Nextfi Software',
           maxLength: 40,
           updatedAt: name,
         },
@@ -434,7 +434,7 @@ test('sign-in opens as a modal, traps focus, and restores the trigger on Escape'
   await page.goto('/');
   const trigger = page.getByRole('button', { name: 'Sign in', exact: true });
   await trigger.click();
-  const dialog = page.getByRole('dialog', { name: 'Welcome to Vrompt.' });
+  const dialog = page.getByRole('dialog', { name: 'Welcome to Nextfi Software.' });
   await expect(dialog).toBeVisible();
   await expect(page).toHaveURL('/');
   await expect(
@@ -462,7 +462,7 @@ test('direct login displays a responsive modal and a useful OAuth error', async 
   await page.setViewportSize({ width: 390, height: 844 });
   await mockApi(page, 'guest');
   await page.goto('/login?error=google_not_configured');
-  const dialog = page.getByRole('dialog', { name: 'Welcome to Vrompt.' });
+  const dialog = page.getByRole('dialog', { name: 'Welcome to Nextfi Software.' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('alert')).toContainText('not configured');
   expect(
@@ -728,17 +728,17 @@ test('visitor signs in, sends with Auto, switches models, views usage, and opens
   await expect(
     page.getByText('98 / 100 monthly credits remaining'),
   ).toBeVisible();
-  await page.getByRole('link', { name: 'Vrompt home', exact: true }).click();
+  await page.getByRole('link', { name: 'Nextfi Software home', exact: true }).click();
   await page
     .getByRole('navigation', { name: 'Main navigation' })
     .getByRole('link', { name: 'Pricing' })
     .click();
-  await page.getByRole('button', { name: 'Get Vrompt Pro' }).click();
+  await page.getByRole('button', { name: 'Get Nextfi Pro' }).click();
   await expect(page).toHaveURL('/billing?plan=PRO');
   await expect(
     page.getByText('Test payment mode. Checkout will not make a real charge.'),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Get Vrompt Pro' }).click();
+  await page.getByRole('button', { name: 'Get Nextfi Pro' }).click();
   await expect(page).toHaveURL('https://checkout.paymongo.com/browser-fixture');
   expect(checkout?.planCode).toBe('PRO');
 });
@@ -811,11 +811,11 @@ test('landing sections, model handoff, and responsive navigation are complete', 
       ),
     ).toBe(true);
     const nav = page.getByRole('navigation', { name: 'Main navigation' });
-    for (const name of ['Why Vrompt', 'Models', 'Pricing']) {
+    for (const name of ['Why Nextfi Software', 'Models', 'Pricing']) {
       await nav.getByRole('link', { name, exact: true }).click();
       await expect(page).toHaveURL(
         new RegExp(
-          `#${name === 'Why Vrompt' ? 'why-vrompt' : name.toLowerCase()}$`,
+          `#${name === 'Why Nextfi Software' ? 'why-vrompt' : name.toLowerCase()}$`,
         ),
       );
     }
@@ -832,7 +832,7 @@ test('landing sections, model handoff, and responsive navigation are complete', 
   ).toHaveValue(modelId);
 });
 
-test('old marketing URLs redirect to the matching section', async ({
+test('legacy public URLs redirect to the matching section', async ({
   page,
 }) => {
   await mockApi(page, 'guest');
@@ -977,7 +977,7 @@ test('chat options preserve drafts, insert prompts, and keep the active task vis
     page.getByRole('button', { name: 'Attach a file' }),
   ).toBeEnabled();
   await picker.selectOption(modelId);
-  await expect(composer).toHaveAttribute('placeholder', 'Message Vrompt…');
+  await expect(composer).toHaveAttribute('placeholder', 'Message Nextfi Software…');
   await expect(page.locator('.composer-context')).not.toContainText(
     'Generate image',
   );

@@ -7,8 +7,11 @@ import {
   actualProviderCost,
   autoCredits,
   chooseAutoModel,
+  chooseAutoModels,
+  isFreeEndpointEligible,
   modelCredits,
   providerConfigured,
+  resolveFreeManualModel,
   type CreditFeature,
   type DbModel,
   type DbPlan,
@@ -16,6 +19,7 @@ import {
 } from './credits';
 import { ApiError, bodyJson, integerValue, json, routeId, stringValue, uuid } from './http';
 import { emptyUsage, ProviderFailure, streamProvider, type ProviderFile, type ProviderMessage } from './providers';
+import { runAutoAttempts } from './auto-routing';
 import {
   connectedProviderSet,
   getUserProviderKey,
@@ -212,7 +216,7 @@ export async function catalogModels() {
 }
 
 export async function workspaceModels(user: Authenticated) {
-  const [{ policies, models }, connected] = await Promise.all([
+  const [{ plan, policies, models }, connected] = await Promise.all([
     configuration(user.profile.id),
     connectedProviderSet(user.profile.id),
   ]);
@@ -221,18 +225,25 @@ export async function workspaceModels(user: Authenticated) {
       .filter((policy) => policy.model_id)
       .map((policy) => [policy.model_id!, policy]),
   );
+  const freePlan = plan.code === 'FREE';
+  const freePolicy = policies.find(
+    (policy) => policy.bucket === 'AUTO' && policy.enabled,
+  );
   return models
     .filter((model) => {
       const policy = policyByModel.get(model.id);
+      const freeAvailable =
+        freePlan && isFreeEndpointEligible(model, 'chat', 'manual');
       const providerHealthy =
         model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY';
       const planAvailable = Boolean(
-        policy &&
+        freeAvailable ||
+          (policy &&
           model.enabled &&
           model.manual_available &&
           !model.maintenance &&
           providerConfigured(model.provider) &&
-          providerHealthy,
+          providerHealthy),
       );
       const byokAvailable = Boolean(
         connected.has(model.provider) &&
@@ -244,23 +255,29 @@ export async function workspaceModels(user: Authenticated) {
     })
     .map((model) => {
       const policy = policyByModel.get(model.id);
+      const freeAvailable =
+        freePlan && isFreeEndpointEligible(model, 'chat', 'manual');
+      const effectivePolicy = policy ?? (freeAvailable ? freePolicy : undefined);
       const providerHealthy =
         model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY';
       const planAvailable = Boolean(
-        policy &&
-          providerConfigured(model.provider) &&
-          providerHealthy,
+        freeAvailable ||
+          (policy && providerConfigured(model.provider) && providerHealthy),
       );
       const byokAvailable = connected.has(model.provider);
       return mapModel(
         model,
-        policy
+        effectivePolicy
           ? {
-              chat: policy.allowed_features.includes('chat')
-                ? modelCredits(model, policy, 'chat')
+              chat: effectivePolicy.allowed_features.includes('chat')
+                ? effectivePolicy.bucket === 'AUTO'
+                  ? autoCredits(effectivePolicy, 'chat')
+                  : modelCredits(model, effectivePolicy, 'chat')
                 : null,
-              image_generation: policy.allowed_features.includes('image_generation')
-                ? modelCredits(model, policy, 'image_generation')
+              image_generation: effectivePolicy.allowed_features.includes('image_generation')
+                ? effectivePolicy.bucket === 'AUTO'
+                  ? autoCredits(effectivePolicy, 'image_generation')
+                  : modelCredits(model, effectivePolicy, 'image_generation')
                 : null,
             }
           : undefined,
@@ -1107,6 +1124,7 @@ export async function streamMessage(
   const cfg = await configuration(user.profile.id);
   let policy: DbPolicy;
   let model: DbModel | undefined;
+  let candidateModels: DbModel[] = [];
   let userApiKey: string | undefined;
 
   if (mode === 'BYOK') {
@@ -1121,12 +1139,28 @@ export async function streamMessage(
         `Connect your ${model.provider} API key in Settings before using BYO mode.`,
         403,
       );
+    candidateModels = [model];
+  } else if (mode === 'MANUAL' && cfg.plan.code === 'FREE') {
+    policy = findPolicy(cfg.policies, 'AUTO', null);
+    model = resolveFreeManualModel(cfg.models, policy, modelId, feature);
+    if (!model)
+      throw new ApiError('This model is not included in your plan.', 403);
+    candidateModels = [model];
   } else {
     policy = findPolicy(cfg.policies, mode, modelId);
-    model = resolveModel(cfg.models, policy, mode, feature, {
-      prompt: content,
-      requiredCapabilities,
-    });
+    if (mode === 'AUTO') {
+      candidateModels = chooseAutoModels(cfg.models, policy, feature, {
+        prompt: content,
+        requiredCapabilities,
+      });
+    } else {
+      const resolved = resolveModel(cfg.models, policy, mode, feature, {
+        prompt: content,
+        requiredCapabilities,
+      });
+      candidateModels = resolved ? [resolved] : [];
+    }
+    model = candidateModels[0];
   }
 
   if (!policy.allowed_features.includes(feature))
@@ -1166,7 +1200,6 @@ export async function streamMessage(
       );
   }
 
-  const files = await loadFiles(selectedAttachments, policy, model);
   const fingerprint = createHash('sha256')
     .update(JSON.stringify({ id, content, attachmentIds, feature, mode, modelId }))
     .digest('hex');
@@ -1218,68 +1251,112 @@ export async function streamMessage(
       void (async () => {
         let output = '';
         let generated = false;
-        const usage = emptyUsage();
-        push({ type: 'model', model: model.display_name, mode });
+        let usage = emptyUsage();
         try {
-          await streamProvider(
-            model,
-            providerMessages,
-            files,
-            Math.min(policy.max_output, model.max_output),
-            abort.signal,
-            (text) => {
-              output += text;
-              push({ type: 'delta', text });
-            },
-            usage,
-            {
-              feature,
-              apiKey: userApiKey,
-              image: async (mimeType, base64) => {
-                const bytes = Uint8Array.from(Buffer.from(base64, 'base64'));
-                if (bytes.byteLength > 10_000_000)
-                  throw new ProviderFailure('OUTPUT_LIMIT', false);
-                const ext = mimeType.includes('jpeg') ? 'jpg' : mimeType.includes('webp') ? 'webp' : 'png';
-                const storagePath = `${user.profile.id}/${id}/generated-${randomUUID()}.${ext}`;
-                await storageUpload(storagePath, bytes, mimeType);
-                try {
-                  const rows = await rest<AttachmentRow[]>('attachments', {
-                    token: user.token,
-                    method: 'POST',
-                    prefer: 'return=representation',
-                    body: {
-                      user_id: user.profile.id,
-                      conversation_id: id,
-                      message_id: assistant.id,
-                      name: `vrompt-image.${ext}`,
-                      mime_type: mimeType,
-                      size_bytes: bytes.byteLength,
-                      storage_path: storagePath,
-                      kind: 'generated',
+          const configuredAttempts = Number(policy.routing?.maxAttempts ?? 3);
+          const maxAttempts =
+            mode === 'AUTO' && Number.isInteger(configuredAttempts)
+              ? configuredAttempts
+              : 1;
+          const attemptResult = await runAutoAttempts(
+            candidateModels,
+            maxAttempts,
+            async (candidate, control) => {
+              let attemptOutput = '';
+              let attemptGenerated = false;
+              const attemptUsage = emptyUsage();
+              push({ type: 'model', model: candidate.display_name, mode });
+              try {
+                const files = await loadFiles(selectedAttachments, policy, candidate);
+                await streamProvider(
+                  candidate,
+                  providerMessages,
+                  files,
+                  Math.min(policy.max_output, candidate.max_output),
+                  abort.signal,
+                  (text) => {
+                    control.markOutput();
+                    attemptOutput += text;
+                    push({ type: 'delta', text });
+                  },
+                  attemptUsage,
+                  {
+                    feature,
+                    apiKey: userApiKey,
+                    image: async (mimeType, base64) => {
+                      const bytes = Uint8Array.from(Buffer.from(base64, 'base64'));
+                      if (bytes.byteLength > 10_000_000)
+                        throw new ProviderFailure('OUTPUT_LIMIT', false);
+                      const ext = mimeType.includes('jpeg') ? 'jpg' : mimeType.includes('webp') ? 'webp' : 'png';
+                      const storagePath = `${user.profile.id}/${id}/generated-${randomUUID()}.${ext}`;
+                      await storageUpload(storagePath, bytes, mimeType);
+                      try {
+                        const rows = await rest<AttachmentRow[]>('attachments', {
+                          token: user.token,
+                          method: 'POST',
+                          prefer: 'return=representation',
+                          body: {
+                            user_id: user.profile.id,
+                            conversation_id: id,
+                            message_id: assistant.id,
+                            name: `vrompt-image.${ext}`,
+                            mime_type: mimeType,
+                            size_bytes: bytes.byteLength,
+                            storage_path: storagePath,
+                            kind: 'generated',
+                          },
+                        });
+                        attemptGenerated = true;
+                        control.markArtifact();
+                        push({ type: 'artifact', artifact: mapFile(rows[0]!) });
+                      } catch (error) {
+                        await storageDelete(storagePath).catch(() => {});
+                        throw error;
+                      }
                     },
-                  });
-                  generated = true;
-                  push({ type: 'artifact', artifact: mapFile(rows[0]!) });
-                } catch (error) {
-                  await storageDelete(storagePath).catch(() => {});
-                  throw error;
-                }
-              },
+                  },
+                );
+                if (!attemptOutput.trim() && !attemptGenerated)
+                  throw new ProviderFailure('EMPTY_RESPONSE');
+                if (mode !== 'BYOK')
+                  await updateSharedNvidiaHealth(
+                    candidate,
+                    true,
+                    'A live generation completed successfully.',
+                  );
+                return {
+                  output: attemptOutput,
+                  generated: attemptGenerated,
+                  usage: attemptUsage,
+                };
+              } catch (error) {
+                output = attemptOutput;
+                generated = attemptGenerated;
+                usage = attemptUsage;
+                if (mode !== 'BYOK' && error instanceof ProviderFailure)
+                  await updateSharedNvidiaHealth(
+                    candidate,
+                    false,
+                    `Live generation failed: ${error.category}`,
+                  );
+                throw error;
+              }
             },
           );
-          if (!output.trim() && !generated)
-            throw new ProviderFailure('EMPTY_RESPONSE');
-          if (mode !== 'BYOK')
-            await updateSharedNvidiaHealth(
-              model,
-              true,
-              'A live generation completed successfully.',
-            );
+          model = attemptResult.model;
+          output = attemptResult.value.output;
+          generated = attemptResult.value.generated;
+          usage = attemptResult.value.usage;
           await rest('messages', {
             token: user.token,
             method: 'PATCH',
             query: `id=eq.${encodeURIComponent(assistant.id)}`,
-            body: { content: output, status: 'SUCCEEDED' },
+            body: {
+              content: output,
+              status: 'SUCCEEDED',
+              model_id: model.id,
+              model_name: model.display_name,
+            },
           });
           await recordUsage(
             user.profile.id,
@@ -1306,7 +1383,7 @@ export async function streamMessage(
             usage: await workspaceUsage(user),
           });
         } catch (error) {
-          if (mode !== 'BYOK' && error instanceof ProviderFailure)
+          if (mode !== 'BYOK' && model && error instanceof ProviderFailure)
             await updateSharedNvidiaHealth(
               model,
               false,

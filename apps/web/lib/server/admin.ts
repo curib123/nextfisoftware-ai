@@ -84,7 +84,7 @@ const settingDefinitions: readonly SettingDefinition[] = [
     label: 'Site name',
     description: 'The public product name.',
     type: 'string',
-    defaultValue: 'Vrompt',
+    defaultValue: 'Nextfi Software',
     maxLength: 80,
     public: true,
   },
@@ -112,7 +112,7 @@ const settingDefinitions: readonly SettingDefinition[] = [
     key: 'registration.enabled',
     group: 'Access',
     label: 'Public registration',
-    description: 'Allow new OAuth users to create a Vrompt account.',
+    description: 'Allow new OAuth users to create a Nextfi Software account.',
     type: 'boolean',
     defaultValue: true,
     public: true,
@@ -459,21 +459,7 @@ function mapPolicy(row: DbPolicy) {
   };
 }
 
-async function modelMutation(request: Request, actor: Authenticated, id?: string) {
-  if (request.method !== 'POST' && request.method !== 'PATCH' && request.method !== 'DELETE')
-    throw new ApiError('Method not allowed.', 405);
-  if (request.method === 'DELETE') {
-    const modelId = routeId(id, 'Model ID');
-    await rest('ai_models', {
-      admin: true,
-      method: 'PATCH',
-      query: `id=eq.${encodeURIComponent(modelId)}`,
-      body: { enabled: false, manual_available: false, auto_available: false },
-    });
-    await audit(actor.profile.id, 'MODEL_DISABLED', 'MODEL', modelId);
-    return { disabled: true, id: modelId };
-  }
-  const input = await bodyJson<Record<string, unknown>>(request);
+export function modelMutationPayload(input: Record<string, unknown>) {
   const additional =
     input.additionalPrices && typeof input.additionalPrices === 'object'
       ? (input.additionalPrices as Record<string, unknown>)
@@ -491,6 +477,7 @@ async function modelMutation(request: Request, actor: Authenticated, id?: string
     enabled: input.enabled === true,
     manual_available: input.manualAvailable !== false,
     auto_available: input.autoAvailable === true,
+    free_endpoint: input.freeEndpoint === true,
     maintenance: input.maintenance === true,
     display_order: integerValue(input.displayOrder ?? 0, 'Display order', -10000, 10000),
     quality_tier: integerValue(input.qualityTier ?? 1, 'Quality tier', 1, 4),
@@ -535,7 +522,27 @@ async function modelMutation(request: Request, actor: Authenticated, id?: string
     data.cache_write_input_price,
     data.image_max_cost_usd ?? 0,
   ])
-    if (!Number.isFinite(value) || value < 0) throw new ApiError('Model pricing must be non-negative numbers.');
+    if (!Number.isFinite(value) || value < 0)
+      throw new ApiError('Model pricing must be non-negative numbers.');
+  return data;
+}
+
+async function modelMutation(request: Request, actor: Authenticated, id?: string) {
+  if (request.method !== 'POST' && request.method !== 'PATCH' && request.method !== 'DELETE')
+    throw new ApiError('Method not allowed.', 405);
+  if (request.method === 'DELETE') {
+    const modelId = routeId(id, 'Model ID');
+    await rest('ai_models', {
+      admin: true,
+      method: 'PATCH',
+      query: `id=eq.${encodeURIComponent(modelId)}`,
+      body: { enabled: false, manual_available: false, auto_available: false },
+    });
+    await audit(actor.profile.id, 'MODEL_DISABLED', 'MODEL', modelId);
+    return { disabled: true, id: modelId };
+  }
+  const input = await bodyJson<Record<string, unknown>>(request);
+  const data = modelMutationPayload(input);
 
   const method = id ? 'PATCH' : 'POST';
   const rows = await rest<AdminModelRow[]>('ai_models', {

@@ -1,4 +1,4 @@
-# Vrompt search operations
+# Nextfi Software search operations
 
 The public, indexable product surfaces are the homepage, pricing, features,
 models, Auto, help, privacy and terms pages. Authenticated workspace routes,

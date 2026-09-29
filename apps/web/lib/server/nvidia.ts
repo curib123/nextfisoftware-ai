@@ -6,11 +6,33 @@ import { discoverNvidiaModelIds, probeNvidiaModel } from './providers';
 import { rest } from './supabase';
 
 const FREE_PLAN_ID = '10000000-0000-4000-8000-000000000001';
-const MISTRAL_FALLBACK_ID = '20000000-0000-4000-8000-000000000003';
 
 type NvidiaModelRow = DbModel & {
   display_order: number;
 };
+
+export function freePoolModelIds(
+  models: Array<
+    Pick<
+      DbModel,
+      'id' | 'provider' | 'free_endpoint' | 'enabled' | 'auto_available' | 'health_status'
+    >
+  >,
+) {
+  return models
+    .filter(
+      (model) =>
+        model.free_endpoint === true &&
+        model.enabled &&
+        model.auto_available &&
+        (model.provider === 'NVIDIA'
+          ? model.health_status === 'HEALTHY'
+          : !['UNHEALTHY', 'NOT_CONFIGURED'].includes(
+              model.health_status ?? 'UNKNOWN',
+            )),
+    )
+    .map((model) => model.id);
+}
 
 function prettifyModelId(value: string) {
   const tail = value.split('/').pop() || value;
@@ -107,15 +129,14 @@ async function removeFreeManualPolicy(modelId: string) {
   });
 }
 
-async function updateFreeAutoPool(healthyIds: string[]) {
+async function updateFreeAutoPool(eligibleIds: string[]) {
   const auto = await freeAutoPolicy();
   const currentIds = Array.isArray(auto.routing?.allowedModelIds)
     ? auto.routing.allowedModelIds.map(String)
     : [];
-  const next = [
-    MISTRAL_FALLBACK_ID,
-    ...healthyIds,
-  ].filter((id, index, all) => all.indexOf(id) === index);
+  const next = eligibleIds.filter(
+    (id, index, all) => all.indexOf(id) === index,
+  );
 
   await rest('generation_policies', {
     admin: true,
@@ -125,6 +146,7 @@ async function updateFreeAutoPool(healthyIds: string[]) {
     body: {
       routing: {
         ...(auto.routing ?? {}),
+        freeEndpointPool: true,
         allowedModelIds: next,
       },
     },
@@ -174,7 +196,7 @@ export async function syncNvidiaFreeModels(request: Request) {
         provider_model_id: providerModelId,
         display_name: prettifyModelId(providerModelId),
         description:
-          'Discovered from the NVIDIA hosted inference catalog. Vrompt enables it only after a successful live chat health check.',
+          'Discovered from the NVIDIA hosted inference catalog. Nextfi Software enables it only after a successful live chat health check.',
         category: 'nvidia-hosted',
         capabilities: inferredCapabilities(providerModelId),
         capability_states: {},
@@ -314,12 +336,20 @@ export async function syncNvidiaFreeModels(request: Request) {
     results.push(...chunkResults);
   }
 
-  const healthy = await rest<Pick<NvidiaModelRow, 'id'>[]>('ai_models', {
+  const freeEndpoints = await rest<
+    Pick<
+      NvidiaModelRow,
+      'id' | 'provider' | 'free_endpoint' | 'enabled' | 'auto_available' | 'health_status'
+    >[]
+  >('ai_models', {
     admin: true,
     query:
-      'provider=eq.NVIDIA&source=eq.NVIDIA_DISCOVERED&free_endpoint=eq.true&health_status=eq.HEALTHY&enabled=eq.true&select=id',
+      'free_endpoint=eq.true&enabled=eq.true&auto_available=eq.true&select=id,provider,free_endpoint,enabled,auto_available,health_status',
   });
-  const pool = await updateFreeAutoPool(healthy.map((model) => model.id));
+  const healthy = freeEndpoints.filter(
+    (model) => model.provider === 'NVIDIA' && model.health_status === 'HEALTHY',
+  );
+  const pool = await updateFreeAutoPool(freePoolModelIds(freeEndpoints));
 
   return {
     discovered: discovered.length,

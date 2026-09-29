@@ -48,7 +48,7 @@ vi.mock('@/components/billing/plan-badge', () => ({
 }));
 
 vi.mock('@/components/brand/brand-mark', () => ({
-  BrandLockup: () => <span>Vrompt</span>,
+  BrandLockup: () => <span>Nextfi Software</span>,
 }));
 
 import { WorkspaceShell } from '@/components/workspace/shell';

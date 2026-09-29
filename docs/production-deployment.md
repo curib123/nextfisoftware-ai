@@ -1,6 +1,6 @@
 # Production deployment
 
-Vrompt production is a **single full-stack Next.js application deployed directly
+Nextfi Software production is a **single full-stack Next.js application deployed directly
 to Vercel**. Supabase hosts Postgres, Auth, and private Storage.
 
 There is no Docker runtime, Nginx proxy, VPS deployment script, NestJS API,
@@ -13,14 +13,14 @@ Prisma runtime, Redis service, or self-hosted PostgreSQL service.
 3. Keep the framework preset as **Next.js**.
 4. Add the production environment variables from `.env.production.example` in
    Vercel Project Settings.
-5. Set `NEXT_PUBLIC_SITE_URL` to `https://vrompt-ai-workplace-web.vercel.app` (or your final custom production origin).
+5. Set `NEXT_PUBLIC_SITE_URL` to `https://www.nextfisoftware.com/` (or your final custom production origin).
 6. Deploy.
 
 The server-only values must remain encrypted Vercel environment variables:
 
 - `SUPABASE_SECRET_KEY`
 - AI provider API keys, including `NVIDIA_API_KEY`
-- `VROMPT_CREDENTIAL_ENCRYPTION_KEY` when BYO provider keys are enabled
+- `NEXTFI_CREDENTIAL_ENCRYPTION_KEY` when BYO provider keys are enabled
 - `PAYMONGO_SECRET_KEY`
 - `PAYMONGO_WEBHOOK_SECRET`
 
@@ -28,7 +28,7 @@ Do not expose any of those values through `NEXT_PUBLIC_`.
 
 ## Supabase
 
-Use the dedicated Vrompt project:
+Use the dedicated Nextfi Software project:
 
 `ytzjrztxmnhqtokycenw`
 
@@ -44,7 +44,7 @@ application at startup.
 ## Google user login
 
 Google user login is implemented in the application and must also be enabled on
-the **Vrompt Supabase project**.
+the **Nextfi Software Supabase project**.
 
 In Google Cloud:
 
@@ -58,11 +58,11 @@ In Supabase:
 1. Open **Authentication → URL Configuration**.
 2. Set **Site URL** to:
 
-   `https://vrompt-ai-workplace-web.vercel.app`
+   `https://www.nextfisoftware.com/`
 
 3. Add this exact production callback to **Redirect URLs**:
 
-   `https://vrompt-ai-workplace-web.vercel.app/auth/callback`
+   `https://www.nextfisoftware.com/auth/callback`
 
 4. Keep this local-development callback only as an additional Redirect URL:
 
@@ -74,7 +74,7 @@ In Supabase:
 If Supabase receives a `redirect_to` value that is not on the Redirect URLs
 allow list, it falls back to the configured Site URL. If Site URL is still
 `http://localhost:3000`, production OAuth will finish at
-`http://localhost:3000/?code=...` instead of Vrompt.
+`http://localhost:3000/?code=...` instead of Nextfi Software.
 
 The application route `/api/v1/auth/google` starts the PKCE OAuth flow and
 `/auth/callback` completes it.
@@ -98,15 +98,18 @@ The sync reads the NVIDIA model catalog, performs real chat-completion probes in
 bounded batches, and enables only endpoints that successfully answer. Healthy
 NVIDIA models are added to the Free plan and Free Auto pool. Failed,
 rate-limited, non-chat, or otherwise unverified endpoints remain unavailable.
-Mistral stays in the Free Auto pool as the fallback.
+Other provider endpoints join Free only after an administrator marks them as
+verified free endpoints.
 
 NVIDIA-hosted developer endpoints are controlled by NVIDIA and can have
-account/model rate limits; Vrompt therefore treats health as dynamic rather than
+account/model rate limits; Nextfi Software therefore treats health as dynamic rather than
 assuming every listed model is usable.
 
 ## Bring Your Own API keys
 
-Set `VROMPT_CREDENTIAL_ENCRYPTION_KEY` before enabling user BYO connections.
+Set `NEXTFI_CREDENTIAL_ENCRYPTION_KEY` before enabling user BYO connections.
+`VROMPT_CREDENTIAL_ENCRYPTION_KEY` remains accepted as a legacy fallback during
+migration.
 Generate one stable 32-byte key, for example:
 
 ```bash

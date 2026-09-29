@@ -8,12 +8,12 @@ export default function Page() {
       <p className="eyebrow">YOUR WORKSPACE, YOUR INFORMATION</p>
       <h1>Privacy</h1>
       <p className="muted">
-        How information is used when you work with Vrompt.
+        How information is used when you work with Nextfi Software.
       </p>
       <section className="panel legal-section">
         <h2>Account and workspace information</h2>
         <p>
-          Vrompt stores your sign-in provider identity, account details,
+          Nextfi Software stores your sign-in provider identity, account details,
           preferences, conversations, saved prompts, projects, and uploaded
           files to operate your workspace. Usage and billing records support
           plan allowances and payment status. Security and administration events
@@ -33,7 +33,7 @@ export default function Page() {
           Google and GitHub handle user sign-in. A protected refresh cookie
           keeps your session active, while access tokens stay in browser memory.
           Browser storage remembers your theme, sign-in destination, and a
-          prompt you carry into chat. PayMongo handles checkout; Vrompt stores
+          prompt you carry into chat. PayMongo handles checkout; Nextfi Software stores
           payment references and status rather than your full card details.
         </p>
         <h2>Access and your controls</h2>

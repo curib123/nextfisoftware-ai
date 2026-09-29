@@ -596,7 +596,7 @@ export function Chat() {
                 <p className="message-label">
                   {m.role === 'user'
                     ? 'You'
-                    : `${m.routingMode === 'MANUAL' ? '' : 'Auto · '}${m.modelName ?? 'Vrompt'}`}
+                    : `${m.routingMode === 'MANUAL' ? '' : 'Auto · '}${m.modelName ?? 'Nextfi Software'}`}
                 </p>
                 <pre>
                   {m.content ||
@@ -778,7 +778,7 @@ export function Chat() {
             placeholder={
               feature === 'image_generation'
                 ? 'Describe the image you want to create…'
-                : 'Message Vrompt…'
+                : 'Message Nextfi Software…'
             }
             value={text}
             disabled={busy}
@@ -825,8 +825,8 @@ export function Chat() {
                         <strong>{autoLabel}</strong>
                         <small>
                           {usage?.plan?.toLowerCase() === 'free'
-                            ? 'Healthy NVIDIA models + Mistral fallback'
-                            : 'Vrompt chooses an eligible model'}
+                            ? 'Verified free endpoints + best-fit routing'
+                            : 'Nextfi Software chooses an eligible model'}
                         </small>
                       </span>
                     </>
@@ -843,7 +843,7 @@ export function Chat() {
                         )}
                         <small>
                           {useByok
-                            ? 'Using your API key · 0 Vrompt AI credits'
+                            ? 'Using your API key · 0 Nextfi Software credits'
                             : selectedModel?.creditCosts?.chat != null
                               ? `${selectedModel.creditCosts.chat} ${selectedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
                               : 'Included in your plan'}
@@ -868,7 +868,7 @@ export function Chat() {
                     <strong>{autoLabel}</strong>
                     <small>
                       {usage?.plan?.toLowerCase() === 'free'
-                        ? 'Included · verified NVIDIA pool + Mistral fallback'
+                        ? 'Included · all verified free endpoints'
                         : 'Recommended · cost-aware routing'}
                     </small>
                   </span>
@@ -891,17 +891,14 @@ export function Chat() {
                         );
                         const unavailable =
                           model.available === false && !allowedModel?.byokAvailable;
-                        const includedViaFreeAuto =
+                        const includedFreeEndpoint = Boolean(
                           usage?.plan?.toLowerCase() === 'free' &&
-                          model.provider === 'MISTRAL' &&
-                          !unavailable;
-                        const includedFreeNvidia = Boolean(
-                          usage?.plan?.toLowerCase() === 'free' &&
-                            model.provider === 'NVIDIA' &&
-                            allowedModel?.planAvailable,
+                            allowedModel?.freeEndpoint &&
+                            allowedModel.planAvailable &&
+                            !unavailable,
                         );
                         const locked =
-                          !selectable && !includedViaFreeAuto && !unavailable;
+                          !selectable && !includedFreeEndpoint && !unavailable;
                         return (
                           <button
                             type="button"
@@ -919,7 +916,6 @@ export function Chat() {
                             disabled={busy || unavailable}
                             onClick={() => {
                               if (locked) openUpgrade(model);
-                              else if (includedViaFreeAuto) chooseModel('AUTO');
                               else chooseModel(model.id);
                             }}
                             aria-label={
@@ -927,8 +923,8 @@ export function Chat() {
                                 ? `${model.displayName}. Locked. View upgrade options.`
                                 : unavailable
                                   ? `${model.displayName}. Temporarily unavailable.`
-                                  : includedViaFreeAuto
-                                    ? `${model.displayName}. Included through Auto on the Free plan.`
+                                  : includedFreeEndpoint
+                                    ? `${model.displayName}. Included in the Free plan.`
                                     : model.displayName
                             }
                           >
@@ -945,11 +941,9 @@ export function Chat() {
                                   : unavailable
                                     ? 'Temporarily unavailable'
                                     : byokOnly
-                                      ? 'Using your API key · 0 Vrompt AI credits'
-                                      : includedViaFreeAuto
-                                        ? 'Included through Auto on Free'
-                                        : includedFreeNvidia
-                                          ? 'Verified NVIDIA endpoint · Included in Free'
+                                      ? 'Using your API key · 0 Nextfi Software credits'
+                                      : includedFreeEndpoint
+                                        ? 'Verified free endpoint · Included in Free'
                                           : allowedModel?.creditCosts?.chat != null
                                             ? `${allowedModel.creditCosts.chat} ${allowedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
                                             : 'Included in your plan'}
@@ -963,7 +957,7 @@ export function Chat() {
                               <span className="model-included-badge">
                                 <Icon name="check" /> Your API
                               </span>
-                            ) : includedViaFreeAuto || includedFreeNvidia ? (
+                            ) : includedFreeEndpoint ? (
                               <span className="model-included-badge">
                                 <Icon name="check" /> Free
                               </span>
@@ -989,7 +983,7 @@ export function Chat() {
                   onClick={() => setPreferByok((value) => !value)}
                   title={
                     useByok
-                      ? 'Switch back to the Vrompt plan allowance'
+                      ? 'Switch back to the Nextfi Software plan allowance'
                       : 'Use your connected provider API key for this model'
                   }
                 >

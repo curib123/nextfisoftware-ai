@@ -262,7 +262,7 @@ export function UserPreferences() {
           <p className="muted">
             Connect your own provider account for manual model access. Your key
             is verified, encrypted on the server, and never returned to the
-            browser after it is saved. BYO requests use 0 Vrompt AI credits,
+            browser after it is saved. BYO requests use 0 Nextfi Software credits,
             while normal safety and rate limits still apply.
           </p>
         </div>
@@ -275,7 +275,7 @@ export function UserPreferences() {
           <div className="service-notice" role="status">
             <p>
               BYO API keys are disabled until the server administrator configures
-              <code> VROMPT_CREDENTIAL_ENCRYPTION_KEY</code>.
+              <code> NEXTFI_CREDENTIAL_ENCRYPTION_KEY</code>.
             </p>
           </div>
         ) : (

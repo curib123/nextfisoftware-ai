@@ -77,7 +77,7 @@ ANTHROPIC_API_KEY=
 NEXTFI_CREDENTIAL_ENCRYPTION_KEY=
 ```
 
-> If the existing application still uses `VROMPT_CREDENTIAL_ENCRYPTION_KEY`, rename it to `NEXTFI_CREDENTIAL_ENCRYPTION_KEY` only after updating the corresponding server-side code and deployment environment variables.
+> `VROMPT_CREDENTIAL_ENCRYPTION_KEY` remains accepted as a legacy fallback while deployments migrate to `NEXTFI_CREDENTIAL_ENCRYPTION_KEY`.
 
 ## User Authentication
 

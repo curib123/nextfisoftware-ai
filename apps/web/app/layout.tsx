@@ -22,8 +22,8 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3001',
   ),
   title: {
-    default: 'Vrompt — The right AI for every task.',
-    template: '%s | Vrompt',
+    default: 'Nextfi Software — The right AI for every task.',
+    template: '%s | Nextfi Software',
   },
   description:
     'One account. One subscription. Multiple AI models. Start with Auto or select a model yourself.',
