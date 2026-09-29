@@ -38,7 +38,7 @@ export function useSiteSettings() {
   return {
     settings,
     refresh,
-    siteName: String(settings['branding.siteName'] || 'Vrompt'),
+    siteName: String(settings['branding.siteName'] || 'Nextfi Software'),
     tagline: String(
       settings['branding.tagline'] || 'Multiple AIs. A smarter you.',
     ),

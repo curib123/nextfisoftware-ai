@@ -600,7 +600,7 @@ export function Landing() {
                     <strong>
                       {detailModel.source === 'NVIDIA_DISCOVERED'
                         ? 'NVIDIA API discovery'
-                        : 'Vrompt registry'}
+                        : 'Nextfi Software registry'}
                     </strong>
                   </div>
                 </section>

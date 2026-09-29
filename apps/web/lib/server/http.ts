@@ -83,7 +83,7 @@ export function errorResponse(error: unknown) {
       status,
     );
   }
-  console.error('Vrompt route error', error);
+  console.error('Nextfi Software route error', error);
   return json({ message: 'Something went wrong. Please retry.' }, 500);
 }
 

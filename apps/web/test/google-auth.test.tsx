@@ -23,7 +23,7 @@ vi.mock('@/components/providers/auth-provider', () => ({
 
 vi.mock('@/components/providers/site-settings-provider', () => ({
   useSiteSettings: () => ({
-    siteName: 'Vrompt',
+    siteName: 'Nextfi Software',
     settings: { 'features.registrationEnabled': true },
   }),
 }));
@@ -55,6 +55,10 @@ describe('user OAuth sign-in', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Welcome to Nextfi Software.' }),
+    ).toBeVisible();
 
     const google = await screen.findByRole('button', {
       name: /continue with google/i,

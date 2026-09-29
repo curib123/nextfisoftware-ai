@@ -5,7 +5,7 @@ export const metadata = { title: 'Terms' };
 export default function Page() {
   return (
     <PublicShell>
-      <p className="eyebrow">USING VROMPT</p>
+      <p className="eyebrow">USING NEXTFI SOFTWARE</p>
       <h1>Terms of use</h1>
       <p className="muted">
         Please read these terms before creating an account or using the
@@ -20,7 +20,7 @@ export default function Page() {
         </p>
         <h2>Models and allowances</h2>
         <p>
-          Vrompt provides access to supported AI models through one workspace.
+          Nextfi Software provides access to supported AI models through one workspace.
           Models and features depend on provider availability and your plan.
           Auto selects an eligible model for a request; manual selection is
           available for models included in your plan. Shared credits and daily
@@ -39,7 +39,7 @@ export default function Page() {
         </p>
         <h2>Responsible use</h2>
         <p>
-          Do not use Vrompt for unlawful activity, attempt to access someone
+          Do not use Nextfi Software for unlawful activity, attempt to access someone
           else&apos;s private workspace, bypass usage limits, or interfere with
           the service. Accounts may be suspended to address misuse or security
           issues. Applicable AI provider restrictions also apply to requests

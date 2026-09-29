@@ -105,7 +105,7 @@ export function WorkspaceShell({
         </h1>
         <p>
           {admin
-            ? 'Use your administrator account to manage Vrompt.'
+            ? 'Use your administrator account to manage Nextfi Software.'
             : 'Sign in to keep your conversations private and synced.'}
         </p>
         {admin ? (
@@ -163,7 +163,7 @@ export function WorkspaceShell({
         id="workspace-navigation"
         className={`workspace-sidebar ${open ? 'is-open' : ''}`}
       >
-        <Link aria-label="Vrompt home" className="workspace-brand" href="/">
+        <Link aria-label="Nextfi Software home" className="workspace-brand" href="/">
           <BrandLockup compact />
         </Link>
         <nav aria-label={admin ? 'Administration' : 'Workspace'}>
