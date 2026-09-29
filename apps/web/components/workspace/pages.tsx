@@ -1,5 +1,6 @@
 'use client';
 import { PageHeading } from '@/components/ui/page-heading';
+import { CardSkeletons, ResourceSkeleton } from '@/components/ui/skeleton';
 import { ResourceState } from '@/components/ui/resource-state';
 import { useAdminResource } from '@/components/admin/use-admin-resource';
 import { Icon } from '@/components/ui/icon';
@@ -113,9 +114,9 @@ export function BillingPage() {
   return (
     <Suspense
       fallback={
-        <p className="content-page" role="status">
-          Loading billing…
-        </p>
+        <div className="content-page">
+          <ResourceSkeleton rows={5} />
+        </div>
       }
     >
       <BillingContent />
@@ -210,8 +211,9 @@ function BillingContent() {
             <span className="eyebrow">MODEL LOCKED</span>
             <h2>Unlock {unlockModel}</h2>
             <p>
-              This model is not included in your current plan. Choose an eligible
-              paid plan below to add model selection to your workspace.
+              This is a premium/flagship model. Choose an eligible paid plan
+              below to add premium model access. Verified free models remain
+              available at 0 Nextfi credits.
             </p>
           </div>
         </section>
@@ -288,7 +290,7 @@ function BillingContent() {
           paidPlanActive={paidPlanActive}
         />
       ) : (
-        !plans.error && <p role="status">Loading current plans…</p>
+        !plans.error && <CardSkeletons count={3} />
       )}
       {plans.data && !plans.data.plans.length && (
         <div className="service-notice">
@@ -302,7 +304,8 @@ function BillingContent() {
         {paidPlanActive &&
           'You can choose a different paid plan when your current access period ends. '}
         Paid access is renewed by checkout. Your card is not automatically
-        charged. Shared credits and individual model limits both apply.
+        charged. Verified free endpoints always use 0 Nextfi credits; premium
+        credits are used only by non-free models and premium Auto routes.
       </p>
     </div>
   );
