@@ -87,7 +87,7 @@ export function Landing() {
   function start(event: FormEvent) {
     event.preventDefault();
     if (draft.trim())
-      sessionStorage.setItem('vrompt-insert-prompt', draft.trim());
+      sessionStorage.setItem('nextfi-insert-prompt', draft.trim());
     begin('/chat');
   }
   function choosePlan(plan: PublicPlan) {
@@ -123,7 +123,7 @@ export function Landing() {
           <BrandLockup compact />
         </Link>
         <nav aria-label="Main navigation">
-          <a href="#why-vrompt">Why {siteName}</a>
+          <a href="#why-nextfi">Why {siteName}</a>
           <a href="#models">Models</a>
           <a href="#pricing">Pricing</a>
         </nav>
@@ -140,19 +140,19 @@ export function Landing() {
         <section className="brand-hero mvp-hero" aria-labelledby="hero-title">
           <div className="hero-copy">
             <span className="brand-pill">
-              <BrandMark className="brand-symbol" /> The right AI for every
-              task.
+              <BrandMark className="brand-symbol" /> Multiple models. One smarter workspace.
             </span>
             <h1 id="hero-title">
-              One account.
+              One workspace.
               <br />
-              One subscription.
+              Multiple AI models.
               <br />
-              <em>Multiple AI models.</em>
+              <em>One smarter way to work.</em>
             </h1>
             <p>
-              Stop switching between separate AI subscriptions. Choose the right
-              AI—or let <strong>Auto</strong> choose for you.
+              Use shared free models, connect your own provider keys, or let{' '}
+              <strong>Auto</strong> route each prompt to the best healthy model
+              available—without jumping between apps.
             </p>
             <div className="brand-hero-actions">
               <button className="primary-button" onClick={() => begin()}>
@@ -164,23 +164,37 @@ export function Landing() {
             </div>
             <div className="hero-assurance">
               <Icon name="check" />
-              Start free. Upgrade when you need more.
+              Free workspace. No card required to get started.
+            </div>
+            <div
+              className="hero-proof-row"
+              aria-label="Nextfi Software highlights"
+            >
+              <span>
+                <Icon name="check" /> Free model access
+              </span>
+              <span>
+                <Icon name="workflow" /> Smart Auto routing
+              </span>
+              <span>
+                <Icon name="shield" /> Private BYO keys
+              </span>
             </div>
           </div>
           <aside className="hero-hub" aria-labelledby="hub-title">
             <div className="hub-caption">
-              <span className="eyebrow">SPACE FOR YOUR NEXT IDEA</span>
+              <span className="eyebrow">LIVE MODEL ROUTING</span>
               <span className="hub-caption-line" aria-hidden="true" />
             </div>
             <div className="hub-intro">
               <h2 id="hub-title">
-                Good ideas.
+                Start with your task.
                 <br />
-                <em>More ways forward.</em>
+                <em>Nextfi finds the fit.</em>
               </h2>
               <p>
-                From your first draft to your next discovery. Start with the
-                right AI.
+                Auto checks model health, task fit, plan access, and usage
+                limits before it routes.
               </p>
             </div>
             <a className="hub-auto" href="#how-auto-works">
@@ -189,7 +203,7 @@ export function Landing() {
                   <strong>Let Auto choose</strong>
                   <span className="hub-recommended">Recommended</span>
                 </span>
-                <small>Best-fit healthy model for your task, plan, and credit budget.</small>
+                <small>Routes only to healthy, eligible models that match your task.</small>
               </span>
               <Icon name="arrow" />
             </a>
@@ -212,14 +226,14 @@ export function Landing() {
               ))}
             </nav>
             <p className="hub-note">
-              One conversation. A choice of perspectives.
+              Choose Auto, or pick a specific model yourself at any time.
             </p>
           </aside>
         </section>
 
         <section className="provider-strip" aria-labelledby="providers-title">
           <p id="providers-title" className="eyebrow">
-            LEADING AI BRANDS. ONE PLACE TO WORK.
+            TOP AI PROVIDERS. ONE CLEAN WORKSPACE.
           </p>
           <div>
             {brands.map(([key, name]) => (
@@ -230,43 +244,44 @@ export function Landing() {
             ))}
           </div>
           <p className="muted">
-            Supported integrations. Model availability and allowances depend on
-            your plan.
+            Provider availability can change with endpoint health, free-tier
+            limits, and the API keys you connect.
           </p>
         </section>
 
         <section
-          id="why-vrompt"
+          id="why-nextfi"
           className="landing-section"
           aria-labelledby="why-title"
         >
           <div className="section-heading">
             <span className="eyebrow">WHY {siteName.toUpperCase()}</span>
             <h2 id="why-title">
-              Less switching.
+              Your AI work in one place.
               <br />
-              <em>More getting things done.</em>
+              <em>Less friction between you and the model.</em>
             </h2>
             <p>
-              Your questions, ideas, and conversations finally have one home.
+              Keep model choice, conversations, usage, and provider access
+              inside one focused workspace.
             </p>
           </div>
           <div className="why-grid">
             {[
               {
                 icon: 'grid',
-                title: 'One account, more choice',
-                text: 'Work with multiple AI models in one workspace. Keep the conversation going without juggling separate accounts.',
+                title: 'Use the model that fits',
+                text: 'Choose from multiple AI providers without rebuilding your workflow every time you want a different model.',
               },
               {
                 icon: 'workflow',
-                title: 'Start with Auto. Stay in control.',
-                text: 'Auto filters out unavailable models, matches capabilities to your task, then chooses the strongest eligible fit within your plan and credit budget.',
+                title: 'Let Auto route intelligently',
+                text: 'Auto skips unhealthy endpoints, matches capabilities to the task, and selects the strongest eligible fit for your current access.',
               },
               {
                 icon: 'chart',
-                title: 'Know what you use',
-                text: 'See your shared credits and model allowances. Upgrade from the same account when you need more room.',
+                title: 'Bring your own API keys',
+                text: 'Connect supported provider keys privately when you want direct provider access while keeping the same Nextfi workspace.',
               },
             ].map((item) => (
               <article key={item.title}>
@@ -288,12 +303,12 @@ export function Landing() {
           <div className="section-heading">
             <span className="eyebrow">A SMARTER DEFAULT</span>
             <h2 id="auto-title">
-              Your task. <em>Auto’s choice.</em>
+              One prompt. <em>Best healthy route.</em>
             </h2>
             <p>
               Auto checks availability first, matches your task to model
-              strengths, and routes only to an eligible model that fits your
-              plan and credit budget.
+              strengths, then routes only to a healthy model you can actually
+              use.
             </p>
           </div>
           <ol className="auto-steps">
@@ -702,15 +717,15 @@ export function Landing() {
           aria-labelledby="pricing-title"
         >
           <div className="section-heading">
-            <span className="eyebrow">ONE PLAN. MORE POSSIBILITIES.</span>
+            <span className="eyebrow">START FREE. SCALE WHEN YOU NEED TO.</span>
             <h2 id="pricing-title">
               Start free.
               <br />
-              <em>Grow at your own pace.</em>
+              <em>Add capacity when you need it.</em>
             </h2>
             <p>
-              Choose the allowance that fits your work. Every plan keeps your AI
-              in one place.
+              Use the free workspace first. Paid plans expand shared allowances,
+              while connected provider keys remain under your control.
             </p>
           </div>
           {plans.data ? (
@@ -738,21 +753,22 @@ export function Landing() {
             </div>
           )}
           <p className="pricing-footnote">
-            Shared credits and individual model limits both apply. Paid access
-            is renewed by checkout; your card is not automatically charged.
+            Shared credits and model-specific limits apply. BYO provider usage
+            follows your provider account. Paid access is renewed by checkout;
+            your card is not automatically charged.
           </p>
         </section>
 
         <section className="brand-cta final-cta">
           <BrandMark className="brand-symbol" />
           <div>
-            <span className="eyebrow">LESS SWITCHING. YOUR NEXT STEP.</span>
+            <span className="eyebrow">READY WHEN YOU ARE</span>
             <h2>
-              One account.
+              Bring your AI work
               <br />
-              Your next great idea.
+              into one place.
             </h2>
-            <p>Start using multiple AI models from one account today.</p>
+            <p>Start free with Auto, or choose the model you want.</p>
           </div>
           <button className="primary-button" onClick={() => begin()}>
             Get Started <Icon name="arrow" />
@@ -765,7 +781,7 @@ export function Landing() {
           <p>{tagline}</p>
         </div>
         <nav aria-label="Footer">
-          <a href="#why-vrompt">Why {siteName}</a>
+          <a href="#why-nextfi">Why {siteName}</a>
           <a href="#models">Models</a>
           <a href="#pricing">Pricing</a>
           <Link href="/docs">Help</Link>

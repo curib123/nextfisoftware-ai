@@ -224,11 +224,14 @@ export function Chat() {
     setFeature('chat');
     setOptionsOpen(false);
     setSelectionNotice('');
-    const inserted = sessionStorage.getItem('vrompt-insert-prompt');
+    const inserted =
+      sessionStorage.getItem('nextfi-insert-prompt') ??
+      sessionStorage.getItem('vrompt-insert-prompt');
     // Synchronize a prompt handed off through browser session storage.
     if (inserted) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setText(inserted);
+      sessionStorage.removeItem('nextfi-insert-prompt');
       sessionStorage.removeItem('vrompt-insert-prompt');
     }
     let current = true;
@@ -381,7 +384,7 @@ export function Chat() {
       if (!response.ok) {
         if (response.status === 401 && accessToken)
           window.dispatchEvent(
-            new CustomEvent('vrompt:session-expired', { detail: accessToken }),
+            new CustomEvent('nextfi:session-expired', { detail: accessToken }),
           );
         const body = await response.json();
         throw new Error(body.message ?? 'Unable to send message.');

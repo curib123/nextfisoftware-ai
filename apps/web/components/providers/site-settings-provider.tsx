@@ -35,12 +35,21 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
 }
 export function useSiteSettings() {
   const { settings, refresh } = useContext(SiteSettingsContext);
+  const configuredSiteName = String(
+    settings['branding.siteName'] || 'Nextfi Software',
+  );
+  const siteName =
+    configuredSiteName.trim().toLowerCase() === 'vrompt'
+      ? 'Nextfi Software'
+      : configuredSiteName;
+
   return {
     settings,
     refresh,
-    siteName: String(settings['branding.siteName'] || 'Nextfi Software'),
+    siteName,
     tagline: String(
-      settings['branding.tagline'] || 'Multiple AIs. A smarter you.',
+      settings['branding.tagline'] ||
+        'Multiple AI models. One smarter workspace.',
     ),
     announcement: String(settings['content.announcement'] || ''),
   };

@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function withSessionLock<T>(operation: () => Promise<T>): Promise<T> {
     return navigator.locks
-      ? navigator.locks.request('vrompt-auth-session', operation)
+      ? navigator.locks.request('nextfi-auth-session', operation)
       : operation();
   }
 
@@ -71,9 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const session = await refreshSession();
       if (
         session.onboardingCompleted &&
-        !window.sessionStorage.getItem('vrompt-returning-user')
+        !window.sessionStorage.getItem('nextfi-returning-user')
       ) {
-        window.sessionStorage.setItem('vrompt-returning-user', '1');
+        window.sessionStorage.setItem('nextfi-returning-user', '1');
       }
     } catch {
       // A missing or expired refresh cookie simply means the user is signed out.
@@ -131,8 +131,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(null);
       setUser(null);
     };
-    window.addEventListener('vrompt:session-expired', expired);
-    return () => window.removeEventListener('vrompt:session-expired', expired);
+    window.addEventListener('nextfi:session-expired', expired);
+    return () => window.removeEventListener('nextfi:session-expired', expired);
   }, [accessToken]);
 
   function beginGoogleLogin() {

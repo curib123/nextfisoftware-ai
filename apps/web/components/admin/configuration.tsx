@@ -599,9 +599,9 @@ function Editor({
             <details className="advanced-config">
               <summary>Capability availability</summary>
               <p className="muted">
-                Map a capability to NATIVE_PROVIDER, VROMPT, or UNAVAILABLE.
-                Only enabled, non-unavailable capabilities are exposed to users
-                and routing.
+                Choose whether a capability uses the provider-native route,
+                the Nextfi Software shared route, or is unavailable. Only
+                enabled capabilities are exposed to users and routing.
               </p>
               <textarea
                 aria-label="Capability availability"

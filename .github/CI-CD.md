@@ -1,6 +1,6 @@
-# Vrompt CI
+# Nextfi CI
 
-Vrompt uses `.github/workflows/ci-cd.yml` only for code quality checks.
+Nextfi Software uses `.github/workflows/ci-cd.yml` only for code quality checks.
 
 ## Pull requests and pushes
 
@@ -23,7 +23,7 @@ project settings.
 
 Supabase remains the hosted database, authentication, and private file-storage
 platform. Database migrations remain tracked under `supabase/migrations` and
-are applied to the dedicated Vrompt Supabase project separately.
+are applied to the dedicated Nextfi Software Supabase project separately.
 
 Never commit the Supabase secret key, AI provider keys, Google OAuth client
 secret, or PayMongo secrets to this repository.

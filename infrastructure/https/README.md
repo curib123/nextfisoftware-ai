@@ -1,4 +1,7 @@
-# Vrompt HTTPS
+# Nextfi Software HTTPS (legacy VPS notes)
+
+These notes document the retired VPS/Docker deployment and are kept only for
+historical migration reference. Current production runs on Vercel.
 
 Nginx terminates HTTP at the Nginx edge. The production Compose file
 publishes only Nginx on ports 80 and 443; web, API, PostgreSQL, and Redis remain

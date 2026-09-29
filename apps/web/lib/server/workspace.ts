@@ -1299,7 +1299,7 @@ export async function streamMessage(
                             user_id: user.profile.id,
                             conversation_id: id,
                             message_id: assistant.id,
-                            name: `vrompt-image.${ext}`,
+                            name: `nextfi-image.${ext}`,
                             mime_type: mimeType,
                             size_bytes: bytes.byteLength,
                             storage_path: storagePath,

@@ -9,7 +9,8 @@ import React, {
 } from 'react';
 import type { ReactNode } from 'react';
 
-const themeStorageKey = 'vrompt-theme';
+const themeStorageKey = 'nextfi-theme';
+const legacyThemeStorageKey = 'vrompt-theme';
 
 export type Theme = 'light' | 'dark' | 'system';
 type ResolvedTheme = Exclude<Theme, 'system'>;
@@ -29,7 +30,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const storedTheme = window.localStorage.getItem(themeStorageKey);
+    let storedTheme = window.localStorage.getItem(themeStorageKey);
+    if (storedTheme !== 'light' && storedTheme !== 'dark') {
+      const legacyTheme = window.localStorage.getItem(legacyThemeStorageKey);
+      if (legacyTheme === 'light' || legacyTheme === 'dark') {
+        storedTheme = legacyTheme;
+        window.localStorage.setItem(themeStorageKey, legacyTheme);
+        window.localStorage.removeItem(legacyThemeStorageKey);
+      }
+    }
     const initialTheme: Theme =
       storedTheme === 'light' || storedTheme === 'dark'
         ? storedTheme

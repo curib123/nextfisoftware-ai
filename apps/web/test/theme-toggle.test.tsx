@@ -38,7 +38,7 @@ describe('theme toggle', () => {
       'Switch to dark mode',
     );
     expect(document.documentElement).toHaveClass('light');
-    expect(window.localStorage.getItem('vrompt-theme')).toBe('light');
+    expect(window.localStorage.getItem('nextfi-theme')).toBe('light');
   });
 
   it('tracks operating-system theme changes while system mode is active', async () => {
@@ -67,6 +67,6 @@ describe('theme toggle', () => {
     await vi.waitFor(() =>
       expect(document.documentElement).toHaveClass('dark'),
     );
-    expect(window.localStorage.getItem('vrompt-theme')).toBeNull();
+    expect(window.localStorage.getItem('nextfi-theme')).toBeNull();
   });
 });

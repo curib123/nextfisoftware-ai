@@ -10,7 +10,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <BrandLockup compact />
         </Link>
         <nav aria-label="Main navigation">
-          <Link href="/#why-vrompt">Features</Link>
+          <Link href="/#why-nextfi">Features</Link>
           <Link href="/#models">Models</Link>
           <Link href="/#pricing">Pricing</Link>
         </nav>

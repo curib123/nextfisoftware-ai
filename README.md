@@ -77,7 +77,6 @@ ANTHROPIC_API_KEY=
 NEXTFI_CREDENTIAL_ENCRYPTION_KEY=
 ```
 
-> `VROMPT_CREDENTIAL_ENCRYPTION_KEY` remains accepted as a legacy fallback while deployments migrate to `NEXTFI_CREDENTIAL_ENCRYPTION_KEY`.
 
 ## User Authentication
 

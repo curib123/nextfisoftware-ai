@@ -8,7 +8,7 @@ Prisma runtime, Redis service, or self-hosted PostgreSQL service.
 
 ## Vercel setup
 
-1. Connect `curib123/vrompt-ai-workplace` to Vercel.
+1. Connect `curib123/nextfisoftware-ai` to Vercel.
 2. Set the project Root Directory to `apps/web`.
 3. Keep the framework preset as **Next.js**.
 4. Add the production environment variables from `.env.production.example` in
