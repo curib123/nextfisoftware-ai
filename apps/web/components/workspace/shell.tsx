@@ -146,6 +146,17 @@ export function WorkspaceShell({
         ['/admin/settings', 'Settings'],
       ]
     : workspaceLinks;
+  const accountName =
+    user.username.trim() || user.email.split('@')[0]?.trim() || 'Account';
+  const accountInitials =
+    accountName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase() || accountName.slice(0, 2).toUpperCase();
+
   return (
     <div className="workspace-shell">
       <a className="skip-link" href="#workspace-content">
@@ -225,6 +236,18 @@ export function WorkspaceShell({
         className="account-menu"
         onClick={(event) => event.currentTarget.hidePopover()}
       >
+        <div className="account-menu-profile">
+          <span className="account-avatar" aria-hidden="true">
+            {accountInitials}
+          </span>
+          <span>
+            <strong>{accountName}</strong>
+            <small>{user.email}</small>
+          </span>
+        </div>
+        <Link href={admin ? '/admin/settings' : '/settings'}>
+          <Icon name="settings" /> Account settings
+        </Link>
         <button onClick={toggleTheme}>
           <Icon name="sun" /> Change theme
         </button>
@@ -289,17 +312,21 @@ export function WorkspaceShell({
             <button
               className="workspace-topbar-avatar"
               popoverTarget="account-actions"
-              aria-label={`Account menu for ${user.username}`}
-              title={user.username}
+              aria-label={`Account menu for ${accountName}`}
+              title={`${accountName} · ${user.email}`}
               type="button"
             >
               <span className="account-avatar" aria-hidden="true">
-                {user.username.slice(0, 2).toUpperCase()}
+                {accountInitials}
               </span>
               <span className="workspace-topbar-identity">
-                <span className="workspace-topbar-user">{user.username}</span>
-                <small>Account</small>
+                <span className="workspace-topbar-user">{accountName}</span>
+                <small>{user.email}</small>
               </span>
+              <Icon
+                name="chevronDown"
+                className="workspace-topbar-account-chevron"
+              />
             </button>
           </div>
         </header>
