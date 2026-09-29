@@ -257,7 +257,11 @@ export async function workspaceModels(user: Authenticated) {
       const policy = policyByModel.get(model.id);
       const freeAvailable =
         freePlan && isFreeEndpointEligible(model, 'chat', 'manual');
-      const effectivePolicy = policy ?? (freeAvailable ? freePolicy : undefined);
+      const effectivePolicy =
+        policy ??
+        (freeAvailable && freePolicy
+          ? effectiveFreePoolPolicy(freePolicy)
+          : undefined);
       const providerHealthy =
         model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY';
       const planAvailable = Boolean(
@@ -289,6 +293,32 @@ export async function workspaceModels(user: Authenticated) {
 function envLimit(name: string, fallback: number) {
   const value = Number(process.env[name]);
   return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function effectiveFreePoolPolicy(policy: DbPolicy): DbPolicy {
+  if (policy.routing?.freeEndpointPool !== true) return policy;
+  return {
+    ...policy,
+    daily_limit: Math.max(
+      policy.daily_limit,
+      envLimit('FREE_FAIR_USE_DAILY_LIMIT', 1000),
+    ),
+    monthly_limit: Math.max(
+      policy.monthly_limit,
+      envLimit('FREE_FAIR_USE_MONTHLY_LIMIT', 30000),
+    ),
+    max_files: Math.max(
+      policy.max_files,
+      Math.min(envLimit('FREE_MAX_FILES', 3), 10),
+    ),
+    max_file_bytes: Math.max(
+      policy.max_file_bytes,
+      Math.min(envLimit('FREE_MAX_FILE_BYTES', 5_000_000), 20_000_000),
+    ),
+    allowed_features: [
+      ...new Set([...policy.allowed_features, 'chat', 'image_generation']),
+    ],
+  };
 }
 
 function byokPolicy(): DbPolicy {
@@ -366,7 +396,8 @@ export async function workspaceUsage(user: Authenticated) {
       daily: p.nextDay.toISOString(),
       monthly: p.nextMonth.toISOString(),
     },
-    allowances: policies.map((policy) => {
+    allowances: policies.map((configuredPolicy) => {
+      const policy = effectiveFreePoolPolicy(configuredPolicy);
       const model = models.find((item) => item.id === policy.model_id);
       const daily = counters.find(
         (row) => row.bucket === policy.bucket && row.period === 'DAILY' && same(row.period_start, p.day),
@@ -782,8 +813,15 @@ export async function uploadFile(
   const id = routeId(conversationId, 'Conversation ID');
   await ownedConversation(user, id);
   const { policies } = await configuration(user.profile.id);
-  const maxBytes = Math.max(0, ...policies.map((policy) => policy.max_file_bytes));
-  const maxFiles = Math.max(0, ...policies.map((policy) => policy.max_files));
+  const effectivePolicies = policies.map(effectiveFreePoolPolicy);
+  const maxBytes = Math.max(
+    0,
+    ...effectivePolicies.map((policy) => policy.max_file_bytes),
+  );
+  const maxFiles = Math.max(
+    0,
+    ...effectivePolicies.map((policy) => policy.max_files),
+  );
   if (!maxFiles) throw new ApiError('File uploads are not included in your plan.', 403);
   const form = await request.formData();
   const file = form.get('file');
@@ -1187,6 +1225,9 @@ export async function streamMessage(
     }
     model = candidateModels[0];
   }
+
+  if (model?.free_endpoint === true)
+    policy = effectiveFreePoolPolicy(policy);
 
   if (!policy.allowed_features.includes(feature))
     throw new ApiError('This task is not included in the selected allowance.', 403);
