@@ -1,4 +1,4 @@
-name: Vrompt CI
+name: Nextfi CI
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
     branches: [main, development, production]
 
 concurrency:
-  group: vrompt-${{ github.workflow }}-${{ github.ref }}
+  group: nextfi-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
