@@ -982,23 +982,6 @@ export function Chat() {
                 ))}
               </div>
             </details>
-            {selected !== 'AUTO' &&
-              selectedWorkspaceModel?.byokAvailable &&
-              selectedWorkspaceModel.planAvailable === true && (
-                <button
-                  type="button"
-                  className={`composer-byok-toggle ${useByok ? 'is-active' : ''}`}
-                  disabled={busy}
-                  onClick={() => setPreferByok((value) => !value)}
-                  title={
-                    useByok
-                      ? 'Switch back to the Nextfi Software plan allowance'
-                      : 'Use your connected provider API key for this model'
-                  }
-                >
-                  {useByok ? 'Using my API' : 'Use my API'}
-                </button>
-              )}
             <div className="composer-actions">
               <input
                 type="file"
@@ -1230,11 +1213,31 @@ export function Chat() {
         <div className="chat-option-fields">
           <p className="muted">
             {canAttach
-              ? `Select up to ${allowance?.maxFiles} file(s) per message, up to ${Math.floor((allowance?.maxFileBytes ?? 0) / 1_000_000)} MB each. `
-              : 'File uploads are unavailable on this selection. '}
-            Images require a compatible model.{' '}
+              ? `Upload images, PDFs, or text files directly from the paperclip button. Up to ${allowance?.maxFiles} file(s) per message, ${Math.floor((allowance?.maxFileBytes ?? 0) / 1_000_000)} MB each. `
+              : 'File and image uploads are unavailable on this selection. '}
             <Link href="/docs">File and storage limits</Link>
           </p>
+          {selected !== 'AUTO' &&
+            selectedWorkspaceModel?.byokAvailable &&
+            selectedWorkspaceModel.planAvailable === true && (
+              <div className="conversation-option-row">
+                <div>
+                  <strong>Provider API key</strong>
+                  <small>
+                    Use your own connected provider key instead of the Nextfi
+                    plan allowance for this model.
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  className={useByok ? 'primary-button' : 'secondary-button'}
+                  disabled={busy}
+                  onClick={() => setPreferByok((value) => !value)}
+                >
+                  {useByok ? 'Using my API' : 'Use my API'}
+                </button>
+              </div>
+            )}
           <label>
             Project
             <select
