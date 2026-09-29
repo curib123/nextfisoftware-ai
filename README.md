@@ -1,6 +1,6 @@
 # Nextfi Software
 
-Nextfi Software is a private, multi-model AI workspace that gives users access to multiple AI models **for free** from one unified application.
+Nextfi Software is a private, multi-model AI workspace built around one core promise: **verified free AI models in one app, with 0 Nextfi credits required for free endpoints**. Paid plans are reserved for premium/flagship model access.
 
 It is built as a **Next.js full-stack application** with **Supabase Postgres/Auth/Storage**, configurable model routing, usage controls, secure provider integrations, and a Vercel-ready deployment architecture.
 
@@ -22,9 +22,9 @@ NestJS, Prisma, Redis, Docker, Nginx, and the self-hosted PostgreSQL runtime hav
 
 ## Free AI Models
 
-Nextfi Software is designed around **free access to available AI models**.
+Nextfi Software is designed around **free-first model access**.
 
-Users can select from the models enabled by the application and use them from the same workspace without purchasing an individual subscription for each AI provider.
+Any model marked `free_endpoint = true` is a verified free endpoint and uses **0 Nextfi credits**. Free users can manually select these models or let Auto route across the healthy free pool. Non-free models are treated as premium/flagship access and may consume premium credits according to their configured provider cost.
 
 Supported provider integrations include:
 
@@ -36,7 +36,7 @@ Supported provider integrations include:
 
 Model availability depends on the provider's currently available free or hosted endpoints, API limits, and the models configured by the Nextfi Software administrator.
 
-Free access does not mean unlimited provider infrastructure. Provider rate limits, request limits, concurrency controls, and safety restrictions may still apply.
+Free access is not marketed as unlimited provider infrastructure. Nextfi does not charge credits for verified free endpoints, but fair-use ceilings, per-minute limits, concurrency limits, provider quotas, health checks, and safety restrictions still apply. This prevents one user from exhausting shared free endpoints for everyone else.
 
 ## Development
 
@@ -75,6 +75,11 @@ GOOGLE_AI_API_KEY=
 ANTHROPIC_API_KEY=
 
 NEXTFI_CREDENTIAL_ENCRYPTION_KEY=
+
+FREE_FAIR_USE_DAILY_LIMIT=1000
+FREE_FAIR_USE_MONTHLY_LIMIT=30000
+FREE_MAX_FILES=3
+FREE_MAX_FILE_BYTES=5000000
 ```
 
 
@@ -100,7 +105,13 @@ For the Nextfi Software Supabase project, configure the Google Client ID and Cli
 
 The staff/admin password flow remains separate from normal user OAuth.
 
-## Model Routing
+## Access tiers and model routing
+
+Nextfi Software uses the model registry instead of hard-coded brand rules:
+
+* **Free** — `free_endpoint = true`; 0 Nextfi credits.
+* **Premium / flagship** — `free_endpoint = false`; access is controlled by plan policies and premium credits.
+* **BYO API key** — provider usage is billed/limited by the user's own provider account and uses 0 Nextfi credits.
 
 Nextfi Software provides a unified interface for multiple AI providers.
 
