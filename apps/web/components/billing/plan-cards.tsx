@@ -30,8 +30,11 @@ export type PublicPlans = {
   checkoutAvailable?: boolean;
   paymentMode?: string;
 };
+
+let publicPlansCache: PublicPlans | undefined;
+
 export function usePlans() {
-  const [data, setData] = useState<PublicPlans>();
+  const [data, setData] = useState<PublicPlans>(() => publicPlansCache);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -40,6 +43,7 @@ export function usePlans() {
       signal: controller.signal,
     })
       .then((value) => {
+        publicPlansCache = value;
         setData(value);
         setError('');
       })
