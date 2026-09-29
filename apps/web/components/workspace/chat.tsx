@@ -29,6 +29,15 @@ import { useFeedback } from '@/components/ui/feedback-modal';
 import { inferConversationFeature } from '@/lib/conversation-feature';
 import type { Preferences } from './preferences';
 
+type ChatBootstrap = {
+  catalog: Model[];
+  models: Model[];
+  usage: Usage;
+  projects: Project[];
+  prompts: SavedPrompt[];
+  preferences: Preferences;
+};
+
 function availableCapabilities(model?: Model) {
   if (!model) return [];
   return model.capabilities.filter(
@@ -103,10 +112,6 @@ export function Chat() {
           (model) => model.available !== false && model.autoAvailable !== false,
         )
       : Boolean(selectedWorkspaceModel));
-  const allowanceExhausted =
-    allowance?.dailyRemaining === 0 ||
-    allowance?.monthlyRemaining === 0 ||
-    (!useByok && usage?.credits?.remaining === 0);
   const requestedFeature = inferConversationFeature(text);
   const canGenerateImage =
     allowance?.allowedFeatures?.includes('image_generation') &&
@@ -126,6 +131,13 @@ export function Chat() {
   const canAfford = (price: number | null) =>
     useByok ||
     (price !== null && (!usage?.credits || usage.credits.remaining >= price));
+  const allowanceExhausted =
+    allowance?.dailyRemaining === 0 ||
+    allowance?.monthlyRemaining === 0 ||
+    (!useByok &&
+      creditPrice !== null &&
+      creditPrice > 0 &&
+      usage?.credits?.remaining === 0);
   const selectedCapabilities = availableCapabilities(selectedWorkspaceModel);
   const acceptsPdf =
     selected === 'AUTO' || selectedCapabilities.includes('files');
@@ -180,41 +192,27 @@ export function Chat() {
       `/billing?unlockModel=${encodeURIComponent(model.displayName)}&modelId=${encodeURIComponent(model.id)}`,
     );
   }
-  useEffect(() => {
-    const controller = new AbortController();
-    void apiRequest<Model[]>('/catalog/models', { signal: controller.signal })
-      .then((data) => {
-        setCatalog(data);
-        setCatalogError(false);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setCatalogError(true);
-      });
-    return () => controller.abort();
-  }, [availabilityAttempt]);
   async function refresh() {
     if (!accessToken) return;
-    const options = { accessToken };
-    const [m, u, p] = await Promise.all([
-      apiRequest<Model[]>('/workspace/models', options),
-      apiRequest<Usage>('/workspace/usage', options),
-      apiRequest<SavedPrompt[]>('/workspace/saved-prompts', options),
-    ]);
-    setModels(m);
-    setUsage(u);
-    setPrompts(p);
+    const data = await apiRequest<ChatBootstrap>('/workspace/bootstrap', {
+      accessToken,
+    });
+    setCatalog(data.catalog);
+    setCatalogError(false);
+    setModels(data.models);
+    setUsage(data.usage);
+    setProjects(data.projects);
+    setPrompts(data.prompts);
+    setPreferences(data.preferences);
   }
   useEffect(() => {
     if (!accessToken) return;
-    void apiRequest<Project[]>('/workspace/projects', { accessToken })
-      .then(setProjects)
-      .catch((e) => setError(e.message));
-    // Hydrate the workspace from the authenticated API.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void refresh().catch((e) => setError(e.message));
-    void apiRequest<Preferences>('/workspace/preferences', { accessToken })
-      .then(setPreferences)
-      .catch((e) => setError(e.message));
+    // One bootstrap request hydrates the model catalog, usage, projects,
+    // saved prompts, and preferences in parallel on the server.
+    void refresh().catch((e) => {
+      setCatalogError(true);
+      setError(e.message);
+    });
   }, [accessToken, availabilityAttempt]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (createdNavigation.current === id && id) {
