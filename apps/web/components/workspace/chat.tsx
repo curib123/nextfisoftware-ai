@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useEffectEvent, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/providers/auth-provider';
