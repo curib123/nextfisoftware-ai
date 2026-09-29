@@ -61,9 +61,11 @@ describe('workspace topbar identity', () => {
       </WorkspaceShell>,
     );
 
-    expect(screen.getByText('curibtech')).toBeVisible();
+    expect(screen.getAllByText('curibtech').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('curib@example.com').length).toBeGreaterThan(0);
     expect(
       screen.getByRole('button', { name: 'Account menu for curibtech' }),
     ).toBeVisible();
+    expect(screen.getByRole('link', { name: /account settings/i })).toBeInTheDocument();
   });
 });

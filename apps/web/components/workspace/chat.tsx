@@ -25,6 +25,8 @@ import { useSiteSettings } from '@/components/providers/site-settings-provider';
 import { Icon } from '@/components/ui/icon';
 import { Modal } from '@/components/ui/modal';
 import { starterTasks } from '@/components/brand/landing';
+import { useFeedback } from '@/components/ui/feedback-modal';
+import { inferConversationFeature } from '@/lib/conversation-feature';
 import type { Preferences } from './preferences';
 
 function availableCapabilities(model?: Model) {
@@ -36,6 +38,7 @@ function availableCapabilities(model?: Model) {
 export function Chat() {
   const { accessToken, user } = useAuth();
   const { settings } = useSiteSettings();
+  const { alert } = useFeedback();
   const router = useRouter();
   const params = useSearchParams();
   const id = params.get('id');
@@ -51,7 +54,6 @@ export function Chat() {
   const createdNavigation = useRef<string | null>(null);
   const modelChosenByUser = useRef(false);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [feature, setFeature] = useState<'chat' | 'image_generation'>('chat');
   const [preferByok, setPreferByok] = useState(false);
   const [models, setModels] = useState<Model[]>([]);
   const [selected, setSelected] = useState('AUTO');
@@ -59,6 +61,11 @@ export function Chat() {
   const [files, setFiles] = useState<ChatFile[]>([]);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [prompts, setPrompts] = useState<SavedPrompt[]>([]);
+  const [savePromptOpen, setSavePromptOpen] = useState(false);
+  const [savePromptTitle, setSavePromptTitle] = useState('');
+  const [savePromptContent, setSavePromptContent] = useState('');
+  const [savePromptBusy, setSavePromptBusy] = useState(false);
+  const [savePromptError, setSavePromptError] = useState('');
   const [usage, setUsage] = useState<Usage>();
   const [text, setText] = useState('');
   const [title, setTitle] = useState('New conversation');
@@ -100,10 +107,21 @@ export function Chat() {
     allowance?.dailyRemaining === 0 ||
     allowance?.monthlyRemaining === 0 ||
     (!useByok && usage?.credits?.remaining === 0);
+  const requestedFeature = inferConversationFeature(text);
+  const canGenerateImage =
+    allowance?.allowedFeatures?.includes('image_generation') &&
+    (!allowance.creditCosts ||
+      allowance.creditCosts.image_generation !== null) &&
+    (selected === 'AUTO' ||
+      availableCapabilities(
+        models.find((model) => model.id === selected),
+      ).includes('image_generation'));
+  const requestedFeatureAvailable =
+    requestedFeature === 'chat' || canGenerateImage;
   const creditPrice = useByok
     ? 0
     : allowance?.creditCosts
-      ? allowance.creditCosts[feature]
+      ? allowance.creditCosts[requestedFeature]
       : 1;
   const canAfford = (price: number | null) =>
     useByok ||
@@ -128,17 +146,10 @@ export function Chat() {
     chatAvailable &&
     Boolean(allowance) &&
     !allowanceExhausted &&
+    requestedFeatureAvailable &&
     canAfford(creditPrice) &&
     attachmentsValid;
   const canAttach = Boolean(accessToken && allowance?.maxFiles);
-  const canGenerateImage =
-    allowance?.allowedFeatures?.includes('image_generation') &&
-    (!allowance.creditCosts ||
-      allowance.creditCosts.image_generation !== null) &&
-    (selected === 'AUTO' ||
-      availableCapabilities(
-        models.find((model) => model.id === selected),
-      ).includes('image_generation'));
   const activeProject = projects.find((project) => project.id === projectId);
   const selectableModelIds = new Set(models.map((model) => model.id));
   const visibleModels = (catalog ?? []).filter(
@@ -160,7 +171,6 @@ export function Chat() {
     setSelectionNotice('');
     setSelected(modelId);
     setPreferByok(false);
-    setFeature('chat');
     closeModelPicker();
   }
 
@@ -221,8 +231,8 @@ export function Chat() {
       setText('');
       previousView.current = view;
     }
-    setFeature('chat');
     setOptionsOpen(false);
+    setSavePromptOpen(false);
     setSelectionNotice('');
     const inserted =
       sessionStorage.getItem('nextfi-insert-prompt') ??
@@ -329,7 +339,13 @@ export function Chat() {
       ? regenerate.artifacts?.length
         ? 'image_generation'
         : 'chat'
-      : feature;
+      : inferConversationFeature(text);
+    if (requestFeature === 'image_generation' && !canGenerateImage) {
+      setError(
+        'Image creation is unavailable for this model or plan. Choose Auto or a compatible model.',
+      );
+      return;
+    }
     const requestCredits = allowance?.creditCosts
       ? allowance.creditCosts[requestFeature]
       : 1;
@@ -701,7 +717,6 @@ export function Chat() {
                 onClick={() => {
                   modelChosenByUser.current = true;
                   setSelected('AUTO');
-                  setFeature('chat');
                   setError('');
                 }}
               >
@@ -710,18 +725,11 @@ export function Chat() {
             )}
           </div>
         )}
-        {(feature === 'image_generation' || activeProject) && (
+        {activeProject && (
           <div className="composer-context">
-            {feature === 'image_generation' && (
-              <span>
-                <Icon name="cube" /> Generate image
-              </span>
-            )}
-            {activeProject && (
-              <span>
-                <Icon name="folder" /> {activeProject.name}
-              </span>
-            )}
+            <span>
+              <Icon name="folder" /> {activeProject.name}
+            </span>
           </div>
         )}
         <div
@@ -778,11 +786,7 @@ export function Chat() {
             rows={1}
             aria-label="Message"
             aria-describedby="composer-status"
-            placeholder={
-              feature === 'image_generation'
-                ? 'Describe the image you want to create…'
-                : 'Message Nextfi Software…'
-            }
+            placeholder="Message Nextfi Software…"
             value={text}
             disabled={busy}
             onChange={(e) => setText(e.target.value)}
@@ -1023,8 +1027,28 @@ export function Chat() {
               )}
               {accessToken && (
                 <button
+                  className="composer-save-prompt"
+                  aria-label="Save current prompt"
+                  title="Save this prompt to your library"
+                  disabled={busy || !text.trim()}
+                  onClick={() => {
+                    const content = text.trim();
+                    const firstLine =
+                      content.split('\n').find((line) => line.trim())?.trim() ??
+                      'Saved prompt';
+                    setSavePromptTitle(firstLine.slice(0, 80));
+                    setSavePromptContent(content);
+                    setSavePromptError('');
+                    setSavePromptOpen(true);
+                  }}
+                >
+                  <Icon name="save" /> <span>Save</span>
+                </button>
+              )}
+              {accessToken && (
+                <button
                   className="composer-options-button"
-                  aria-label="Chat options"
+                  aria-label="Conversation options"
                   aria-haspopup="dialog"
                   disabled={busy}
                   onClick={() => setOptionsOpen(true)}
@@ -1059,7 +1083,10 @@ export function Chat() {
                 ? 'You’ve reached your usage limit.'
                 : usage && !allowance
                   ? 'This model isn’t included in your plan.'
-                  : allowance
+                  : requestedFeature === 'image_generation' &&
+                      !canGenerateImage
+                    ? 'Image creation is unavailable for this model or plan. Choose Auto or a compatible model.'
+                    : allowance
                     ? creditPrice === null
                       ? 'Pricing for this task is not available yet.'
                       : !canAfford(creditPrice)
@@ -1083,10 +1110,110 @@ export function Chat() {
         </div>
       </div>
       <Modal
+        open={savePromptOpen}
+        onClose={() => {
+          if (!savePromptBusy) setSavePromptOpen(false);
+        }}
+        title="Save prompt"
+        description="Saved prompts are created only when you choose Save. Your composer draft is not auto-saved to the prompt library."
+        className="save-prompt-dialog"
+      >
+        <form
+          className="editor-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (
+              savePromptBusy ||
+              !accessToken ||
+              !savePromptTitle.trim() ||
+              !savePromptContent.trim()
+            )
+              return;
+            setSavePromptBusy(true);
+            setSavePromptError('');
+            void apiRequest<SavedPrompt>('/workspace/saved-prompts', {
+              accessToken,
+              method: 'POST',
+              body: JSON.stringify({
+                title: savePromptTitle.trim(),
+                content: savePromptContent.trim(),
+              }),
+            })
+              .then((saved) => {
+                setPrompts((old) => [
+                  saved,
+                  ...old.filter((prompt) => prompt.id !== saved.id),
+                ]);
+                setSavePromptOpen(false);
+                alert({
+                  tone: 'success',
+                  title: 'Prompt saved',
+                  message: 'This prompt is now available in your Saved Prompts library.',
+                });
+              })
+              .catch((saveError) =>
+                setSavePromptError(
+                  saveError instanceof Error
+                    ? saveError.message
+                    : 'Unable to save this prompt.',
+                ),
+              )
+              .finally(() => setSavePromptBusy(false));
+          }}
+        >
+          <label>
+            Name
+            <input
+              required
+              maxLength={160}
+              value={savePromptTitle}
+              disabled={savePromptBusy}
+              onChange={(event) => setSavePromptTitle(event.target.value)}
+            />
+          </label>
+          <label>
+            Prompt
+            <textarea
+              required
+              rows={7}
+              maxLength={32000}
+              value={savePromptContent}
+              disabled={savePromptBusy}
+              onChange={(event) => setSavePromptContent(event.target.value)}
+            />
+          </label>
+          {savePromptError && (
+            <p className="error-banner" role="alert">
+              {savePromptError}
+            </p>
+          )}
+          <div className="form-actions">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={savePromptBusy}
+              onClick={() => setSavePromptOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="primary-button"
+              disabled={
+                savePromptBusy ||
+                !savePromptTitle.trim() ||
+                !savePromptContent.trim()
+              }
+            >
+              {savePromptBusy ? 'Saving…' : 'Save prompt'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+      <Modal
         open={optionsOpen}
         onClose={() => setOptionsOpen(false)}
-        title="Chat options"
-        description="Choose a task, organize this chat, or reuse a saved prompt."
+        title="Conversation options"
+        description="Organize this conversation or insert a saved prompt."
         className="chat-options-dialog"
       >
         <div className="chat-option-fields">
@@ -1097,33 +1224,6 @@ export function Chat() {
             Images require a compatible model.{' '}
             <Link href="/docs">File and storage limits</Link>
           </p>
-          <label>
-            Task
-            <select
-              aria-label="Choose task"
-              value={feature}
-              disabled={busy}
-              onChange={(e) =>
-                setFeature(e.target.value as 'chat' | 'image_generation')
-              }
-            >
-              <option value="chat">Chat</option>
-              <option value="image_generation" disabled={!canGenerateImage}>
-                Generate image
-              </option>
-            </select>
-            {!canGenerateImage && (
-              <small>
-                Image generation is unavailable for this model or plan.
-              </small>
-            )}
-            {canGenerateImage && (
-              <small>
-                One image per response, up to 10 MB. The displayed image credit
-                price applies.
-              </small>
-            )}
-          </label>
           <label>
             Project
             <select
