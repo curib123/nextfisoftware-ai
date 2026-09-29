@@ -11,6 +11,7 @@ import { useSiteSettings } from '@/components/providers/site-settings-provider';
 import { SignInButton } from '@/components/providers/auth-dialog-provider';
 import { useFeedback } from '@/components/ui/feedback-modal';
 import { PlanBadge } from '@/components/billing/plan-badge';
+import { ResourceSkeleton, Skeleton } from '@/components/ui/skeleton';
 const navigationIcons: Record<string, IconName> = {
   '/chat': 'chat',
   '/conversations': 'history',
@@ -96,7 +97,25 @@ export function WorkspaceShell({
     };
   }, [open]);
   if (isLoading)
-    return <main className="center-page">Opening your workspace…</main>;
+    return (
+      <div className="workspace-loading-shell" role="status" aria-label="Opening workspace">
+        <aside className="workspace-loading-sidebar" aria-hidden="true">
+          <Skeleton width={152} height={32} />
+          <div style={{ marginTop: 36 }}>
+            <ResourceSkeleton rows={5} />
+          </div>
+        </aside>
+        <main className="workspace-loading-main">
+          <header className="workspace-loading-topbar" aria-hidden="true">
+            <Skeleton width={120} height={18} />
+            <Skeleton width={150} height={40} />
+          </header>
+          <div className="workspace-loading-content">
+            <ResourceSkeleton rows={6} />
+          </div>
+        </main>
+      </div>
+    );
   if (!user)
     return (
       <main className="center-page">
