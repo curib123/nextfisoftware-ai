@@ -848,10 +848,12 @@ export function Chat() {
                         )}
                         <small>
                           {useByok
-                            ? 'Using your API key · 0 Nextfi Software credits'
-                            : selectedModel?.creditCosts?.chat != null
-                              ? `${selectedModel.creditCosts.chat} ${selectedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
-                              : 'Included in your plan'}
+                            ? 'Using your API key · 0 Nextfi credits'
+                            : selectedModel?.freeEndpoint
+                              ? 'Free · 0 Nextfi credits'
+                              : selectedModel?.creditCosts?.chat != null
+                                ? `${selectedModel.creditCosts.chat} ${selectedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
+                                : 'Premium access'}
                         </small>
                       </span>
                     </>
@@ -873,7 +875,7 @@ export function Chat() {
                     <strong>{autoLabel}</strong>
                     <small>
                       {usage?.plan?.toLowerCase() === 'free'
-                        ? 'Included · all verified free endpoints'
+                        ? 'Free pool · 0 Nextfi credits'
                         : 'Recommended · cost-aware routing'}
                     </small>
                   </span>
@@ -946,12 +948,14 @@ export function Chat() {
                                   : unavailable
                                     ? 'Temporarily unavailable'
                                     : byokOnly
-                                      ? 'Using your API key · 0 Nextfi Software credits'
-                                      : includedFreeEndpoint
-                                        ? 'Verified free endpoint · Included in Free'
+                                      ? 'Using your API key · 0 Nextfi credits'
+                                      : model.freeEndpoint
+                                        ? 'Free · 0 Nextfi credits'
+                                        : includedFreeEndpoint
+                                          ? 'Free · 0 Nextfi credits'
                                           : allowedModel?.creditCosts?.chat != null
                                             ? `${allowedModel.creditCosts.chat} ${allowedModel.creditCosts.chat === 1 ? 'credit' : 'credits'} per response`
-                                            : 'Included in your plan'}
+                                            : 'Premium access'}
                               </small>
                             </span>
                             {locked ? (
@@ -1012,12 +1016,16 @@ export function Chat() {
                   e.target.value = '';
                 }}
               />
-              {canAttach && (
+              {accessToken && (
                 <button
                   className="composer-attach"
-                  aria-label="Attach a file"
-                  title={`Attach up to ${allowance?.maxFiles} file(s) per message, ${Math.floor((allowance?.maxFileBytes ?? 0) / 1_000_000)} MB each`}
-                  disabled={busy}
+                  aria-label="Upload file or image"
+                  title={
+                    canAttach
+                      ? `Upload image, PDF, or text file · up to ${allowance?.maxFiles} per message · ${Math.floor((allowance?.maxFileBytes ?? 0) / 1_000_000)} MB each`
+                      : 'File and image uploads are unavailable for this model or plan'
+                  }
+                  disabled={busy || !canAttach}
                   onClick={() => upload.current?.click()}
                 >
                   <Icon name="attach" />
@@ -1040,7 +1048,7 @@ export function Chat() {
                     setSavePromptOpen(true);
                   }}
                 >
-                  <Icon name="save" /> <span>Save</span>
+                  <Icon name="save" />
                 </button>
               )}
               {accessToken && (
@@ -1051,7 +1059,7 @@ export function Chat() {
                   disabled={busy}
                   onClick={() => setOptionsOpen(true)}
                 >
-                  <Icon name="settings" /> <span>Options</span>
+                  <Icon name="settings" />
                 </button>
               )}
               {busy ? (
@@ -1074,31 +1082,36 @@ export function Chat() {
           </div>
         </div>
         <div className="composer-footer" id="composer-status">
-          <span>
-            {catalog === null && !catalogError
-              ? 'Loading models…'
-              : allowanceExhausted
-                ? 'You’ve reached your usage limit.'
-                : usage && !allowance
-                  ? 'This model isn’t included in your plan.'
-                  : requestedFeature === 'image_generation' &&
-                      !canGenerateImage
-                    ? 'Image creation is unavailable for this model or plan. Choose Auto or a compatible model.'
-                    : allowance
-                    ? creditPrice === null
-                      ? 'Pricing for this task is not available yet.'
-                      : !canAfford(creditPrice)
-                        ? `This response needs ${creditPrice} credits. You have ${usage?.credits?.remaining ?? 0}.`
-                        : `${creditPrice} ${creditPrice === 1 ? 'credit' : 'credits'} per response · ${allowance.dailyRemaining} ${allowance.dailyRemaining === 1 ? 'message' : 'messages'} left today`
-                    : 'Checking your allowance…'}
-            {accessToken && <Link href="/usage">View usage</Link>}
-            {usage?.credits && (
-              <span className="composer-credit-balance">
-                {usage.credits.remaining}{' '}
-                {usage.credits.remaining === 1 ? 'credit' : 'credits'} left this
-                month
+          <span className="composer-status-copy">
+            {catalog === null && !catalogError ? (
+              <span className="composer-status-skeleton" aria-label="Loading model access">
+                <span className="skeleton-shimmer" />
+              </span>
+            ) : allowanceExhausted ? (
+              'You’ve reached the current fair-use limit.'
+            ) : usage && !allowance ? (
+              'This model isn’t included in your plan.'
+            ) : requestedFeature === 'image_generation' && !canGenerateImage ? (
+              'Image creation is unavailable here. Choose Auto or another model.'
+            ) : allowance ? (
+              creditPrice === null ? (
+                'Pricing is unavailable for this model.'
+              ) : creditPrice === 0 ? (
+                `Free · 0 credits · ${allowance.dailyRemaining.toLocaleString()} requests left today`
+              ) : !canAfford(creditPrice) ? (
+                `Needs ${creditPrice} credits · ${usage?.credits?.remaining ?? 0} available`
+              ) : (
+                `${creditPrice} ${creditPrice === 1 ? 'credit' : 'credits'} · ${allowance.dailyRemaining.toLocaleString()} requests left today`
+              )
+            ) : (
+              <span className="composer-status-skeleton" aria-label="Checking access">
+                <span className="skeleton-shimmer" />
               </span>
             )}
+            {creditPrice !== null &&
+              creditPrice > 0 &&
+              usage?.credits &&
+              ` · ${usage.credits.remaining.toLocaleString()} premium credits left`}
           </span>
           <span className="composer-keyboard-hint">
             {preferences?.sendOnEnter === false
