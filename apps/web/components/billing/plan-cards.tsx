@@ -121,7 +121,9 @@ export function PlanCards({
               </li>
               <li>
                 <Icon name="check" />
-                Auto — Recommended
+                {free
+                  ? 'Free Auto routing across verified free endpoints'
+                  : 'Smart Auto routing across your eligible model pool'}
               </li>
               {auto && (
                 <li>
@@ -129,12 +131,19 @@ export function PlanCards({
                   Up to {auto.dailyLimit.toLocaleString()} Auto requests per day
                 </li>
               )}
-              {plan.monthlyCredits !== undefined && (
+              {free ? (
                 <li>
                   <Icon name="check" />
-                  {plan.monthlyCredits.toLocaleString()} shared credits per
-                  month
+                  Verified free models cost 0 Nextfi credits
                 </li>
+              ) : (
+                plan.monthlyCredits !== undefined && (
+                  <li>
+                    <Icon name="check" />
+                    {plan.monthlyCredits.toLocaleString()} premium credits per
+                    month for non-free models
+                  </li>
+                )
               )}
               {Boolean(plan.manualModelCount) && (
                 <li>
@@ -144,7 +153,9 @@ export function PlanCards({
               )}
               <li>
                 <Icon name="check" />
-                Credit prices vary by model and task
+                {free
+                  ? 'Free access is subject to provider availability and fair-use limits'
+                  : 'All free models remain 0 credits; premium prices vary by model and task'}
               </li>
               {Boolean(plan.maxFiles) && (
                 <li>
