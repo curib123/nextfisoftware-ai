@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+  autoCredits,
+  modelCredits,
   resolveFreeManualModel,
   type DbModel,
   type DbPolicy,
@@ -88,6 +90,33 @@ describe('Free model access', () => {
     expect(resolveFreeManualModel([free], freePolicy(), free.id)?.id).toBe(
       free.id,
     );
+  });
+
+
+  it('charges zero credits for verified free endpoints', () => {
+    const free = model({
+      id: 'free-zero-credit',
+      provider: 'OPENAI',
+      display_name: 'Free zero credit',
+      free_endpoint: true,
+    });
+
+    expect(modelCredits(free, freePolicy(), 'chat')).toBe(0);
+    expect(autoCredits(freePolicy(), 'chat')).toBe(0);
+  });
+
+  it('keeps premium models billable', () => {
+    const premium = model({
+      id: 'premium-billable',
+      provider: 'OPENAI',
+      display_name: 'Premium billable',
+      free_endpoint: false,
+      input_price: 0.5,
+      output_price: 1,
+      credit_cost: 2,
+    });
+
+    expect(modelCredits(premium, freePolicy(), 'chat')).toBeGreaterThan(0);
   });
 
   it('free manual selection rejects a premium model', () => {

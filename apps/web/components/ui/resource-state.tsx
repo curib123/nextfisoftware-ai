@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { ResourceSkeleton } from './skeleton';
 
 export function ResourceState({
   loading,
@@ -13,12 +14,7 @@ export function ResourceState({
   onRetry: () => void;
   children?: ReactNode;
 }) {
-  if (loading)
-    return (
-      <p className="resource-state" role="status">
-        Loading…
-      </p>
-    );
+  if (loading) return <ResourceSkeleton />;
   if (error)
     return (
       <div className="resource-state">

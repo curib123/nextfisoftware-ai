@@ -24,6 +24,9 @@ import { Icon, type IconName } from '@/components/ui/icon';
 import { apiRequest, type Model } from '@/lib/api';
 import { PlanBadge } from '@/components/billing/plan-badge';
 import { Modal } from '@/components/ui/modal';
+import { CardSkeletons } from '@/components/ui/skeleton';
+
+let landingCatalogCache: Model[] | undefined;
 
 export const starterTasks: {
   key: string;
@@ -56,8 +59,10 @@ export function Landing() {
   const { user } = useAuth();
   const { openLogin } = useAuthDialog();
   const router = useRouter();
-  const [models, setModels] = useState<Model[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [models, setModels] = useState<Model[]>(
+    () => landingCatalogCache ?? [],
+  );
+  const [loaded, setLoaded] = useState(Boolean(landingCatalogCache));
   const [catalogError, setCatalogError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
@@ -68,6 +73,7 @@ export function Landing() {
     const controller = new AbortController();
     void apiRequest<Model[]>('/catalog/models', { signal: controller.signal })
       .then((data) => {
+        landingCatalogCache = data;
         setModels(data);
         setLoaded(true);
         setCatalogError(false);
@@ -140,19 +146,20 @@ export function Landing() {
         <section className="brand-hero mvp-hero" aria-labelledby="hero-title">
           <div className="hero-copy">
             <span className="brand-pill">
-              <BrandMark className="brand-symbol" /> Multiple models. One smarter workspace.
+              <BrandMark className="brand-symbol" /> Free AI models. One app.
             </span>
             <h1 id="hero-title">
-              One workspace.
+              Free AI models.
               <br />
-              Multiple AI models.
+              One place to use them.
               <br />
-              <em>One smarter way to work.</em>
+              <em>Upgrade for flagship power.</em>
             </h1>
             <p>
-              Use shared free models, connect your own provider keys, or let{' '}
-              <strong>Auto</strong> route each prompt to the best healthy model
-              available—without jumping between apps.
+              Use every verified free endpoint available in Nextfi without
+              spending Nextfi credits. Let <strong>Auto</strong> pick the best
+              healthy free model, or upgrade when you want premium flagship
+              models.
             </p>
             <div className="brand-hero-actions">
               <button className="primary-button" onClick={() => begin()}>
@@ -164,14 +171,14 @@ export function Landing() {
             </div>
             <div className="hero-assurance">
               <Icon name="check" />
-              Free workspace. No card required to get started.
+              Free models use 0 credits. No card required to start.
             </div>
             <div
               className="hero-proof-row"
               aria-label="Nextfi Software highlights"
             >
               <span>
-                <Icon name="check" /> Free model access
+                <Icon name="check" /> Verified free models · 0 credits
               </span>
               <span>
                 <Icon name="workflow" /> Smart Auto routing
@@ -193,8 +200,9 @@ export function Landing() {
                 <em>Nextfi finds the fit.</em>
               </h2>
               <p>
-                Auto checks model health, task fit, plan access, and usage
-                limits before it routes.
+                On Free, Auto stays inside healthy verified free endpoints.
+                Paid plans can route to premium flagship models when your plan
+                allows it.
               </p>
             </div>
             <a className="hub-auto" href="#how-auto-works">
@@ -203,7 +211,7 @@ export function Landing() {
                   <strong>Let Auto choose</strong>
                   <span className="hub-recommended">Recommended</span>
                 </span>
-                <small>Routes only to healthy, eligible models that match your task.</small>
+                <small>Best-fit routing without wasting premium credits.</small>
               </span>
               <Icon name="arrow" />
             </a>
@@ -233,7 +241,7 @@ export function Landing() {
 
         <section className="provider-strip" aria-labelledby="providers-title">
           <p id="providers-title" className="eyebrow">
-            TOP AI PROVIDERS. ONE CLEAN WORKSPACE.
+            FREE AI ENDPOINTS + FLAGSHIP MODELS. ONE WORKSPACE.
           </p>
           <div>
             {brands.map(([key, name]) => (
@@ -244,8 +252,9 @@ export function Landing() {
             ))}
           </div>
           <p className="muted">
-            Provider availability can change with endpoint health, free-tier
-            limits, and the API keys you connect.
+            Free access follows verified endpoint availability and provider
+            fair-use limits. Premium models are clearly marked before they can
+            use credits.
           </p>
         </section>
 
@@ -257,31 +266,31 @@ export function Landing() {
           <div className="section-heading">
             <span className="eyebrow">WHY {siteName.toUpperCase()}</span>
             <h2 id="why-title">
-              Your AI work in one place.
+              Free models first.
               <br />
-              <em>Less friction between you and the model.</em>
+              <em>Premium only when you choose it.</em>
             </h2>
             <p>
-              Keep model choice, conversations, usage, and provider access
-              inside one focused workspace.
+              Nextfi separates free endpoints from premium flagship models so
+              you always know what costs credits and what does not.
             </p>
           </div>
           <div className="why-grid">
             {[
               {
                 icon: 'grid',
-                title: 'Use the model that fits',
-                text: 'Choose from multiple AI providers without rebuilding your workflow every time you want a different model.',
+                title: 'Free really means 0 credits',
+                text: 'Every model marked Free can be used without spending Nextfi credits. Availability still follows provider health and fair-use limits.',
               },
               {
                 icon: 'workflow',
-                title: 'Let Auto route intelligently',
-                text: 'Auto skips unhealthy endpoints, matches capabilities to the task, and selects the strongest eligible fit for your current access.',
+                title: 'Auto protects your budget',
+                text: 'Free users route only across verified free models. Paid users can reach premium pools without silently turning a free request into a flagship charge.',
               },
               {
                 icon: 'chart',
-                title: 'Bring your own API keys',
-                text: 'Connect supported provider keys privately when you want direct provider access while keeping the same Nextfi workspace.',
+                title: 'Flagship power is optional',
+                text: 'Subscriptions and premium credits are for expensive frontier models. You can keep using free models even when your premium balance is empty.',
               },
             ].map((item) => (
               <article key={item.title}>
@@ -303,12 +312,12 @@ export function Landing() {
           <div className="section-heading">
             <span className="eyebrow">A SMARTER DEFAULT</span>
             <h2 id="auto-title">
-              One prompt. <em>Best healthy route.</em>
+              One prompt. <em>The right cost tier automatically.</em>
             </h2>
             <p>
-              Auto checks availability first, matches your task to model
-              strengths, then routes only to a healthy model you can actually
-              use.
+              Auto checks availability, task fit, capabilities, and access
+              tier before choosing a model. Free routing stays free; premium
+              routing happens only when your plan permits it.
             </p>
           </div>
           <ol className="auto-steps">
@@ -330,8 +339,9 @@ export function Landing() {
               <span>03</span>
               <h3>Best eligible model answers</h3>
               <p>
-                Cost is used as a tie-breaker after fit and quality, while the
-                plan’s safety ceiling prevents surprise provider spend.
+                Free users stay inside the free pool. Paid users get the
+                strongest eligible route while credit ceilings prevent surprise
+                premium usage.
               </p>
             </li>
           </ol>
@@ -400,13 +410,13 @@ export function Landing() {
           aria-labelledby="models-title"
         >
           <div className="section-heading">
-            <span className="eyebrow">DIFFERENT STRENGTHS. ONE WORKSPACE.</span>
+            <span className="eyebrow">FREE OR FLAGSHIP. ALWAYS CLEAR.</span>
             <h2 id="models-title">
-              Meet your <em>AI lineup.</em>
+              Pick from your <em>AI lineup.</em>
             </h2>
             <p>
-              Use Auto — Recommended, or choose a specific model for your next
-              task.
+              Free models are marked 0 credits. Premium flagship models are
+              clearly labeled before they can use your premium balance.
             </p>
           </div>
           <div className="model-section-toolbar">
@@ -427,11 +437,7 @@ export function Landing() {
               Start with Auto
             </button>
           </div>
-          {!loaded && (
-            <p role="status" className="muted">
-              Loading the model lineup…
-            </p>
-          )}
+          {!loaded && <CardSkeletons count={6} className="landing-model-skeletons" />}
           {catalogError && (
             <div role="alert" className="service-notice">
               <p>The model catalog is temporarily unavailable.</p>
@@ -457,7 +463,10 @@ export function Landing() {
                     source={model.source}
                   />
                   {model.freeEndpoint && (
-                    <span className="model-free-badge">Free endpoint</span>
+                    <span className="model-free-badge">Free · 0 credits</span>
+                  )}
+                  {!model.freeEndpoint && (
+                    <span className="model-premium-badge">Premium</span>
                   )}
                 </div>
                 <h3>{model.displayName}</h3>
@@ -557,8 +566,8 @@ export function Landing() {
                     />
                     <span className="eyebrow">
                       {detailModel.freeEndpoint
-                        ? 'VERIFIED FREE ENDPOINT'
-                        : 'MODEL PROFILE'}
+                        ? 'FREE · 0 NEXTFI CREDITS'
+                        : 'PREMIUM / FLAGSHIP ACCESS'}
                     </span>
                     <p>{detailModel.description}</p>
                   </div>
@@ -606,8 +615,8 @@ export function Landing() {
                     <span>Access</span>
                     <strong>
                       {detailModel.freeEndpoint
-                        ? 'Verified free NVIDIA endpoint'
-                        : 'Plan dependent'}
+                        ? 'Free · 0 Nextfi credits'
+                        : 'Premium · credits or subscription'}
                     </strong>
                   </div>
                   <div>
@@ -717,21 +726,22 @@ export function Landing() {
           aria-labelledby="pricing-title"
         >
           <div className="section-heading">
-            <span className="eyebrow">START FREE. SCALE WHEN YOU NEED TO.</span>
+            <span className="eyebrow">FREE MODELS STAY FREE.</span>
             <h2 id="pricing-title">
-              Start free.
+              Pay for flagship access.
               <br />
-              <em>Add capacity when you need it.</em>
+              <em>Not for the free model pool.</em>
             </h2>
             <p>
-              Use the free workspace first. Paid plans expand shared allowances,
-              while connected provider keys remain under your control.
+              Verified free endpoints use 0 Nextfi credits. Paid plans add
+              premium credits and access to expensive flagship models while all
+              free models remain available.
             </p>
           </div>
           {plans.data ? (
             <PlanCards plans={plans.data.plans} onChoose={choosePlan} />
           ) : (
-            !plans.error && <p role="status">Loading plans…</p>
+            !plans.error && <CardSkeletons count={3} />
           )}
           {plans.error && (
             <div className="service-notice" role="alert">
@@ -753,9 +763,9 @@ export function Landing() {
             </div>
           )}
           <p className="pricing-footnote">
-            Shared credits and model-specific limits apply. BYO provider usage
-            follows your provider account. Paid access is renewed by checkout;
-            your card is not automatically charged.
+            Verified free endpoints never consume Nextfi credits. Provider
+            availability, rate limits, and fair-use protections still apply.
+            Premium credits are reserved for non-free flagship models.
           </p>
         </section>
 
@@ -768,7 +778,7 @@ export function Landing() {
               <br />
               into one place.
             </h2>
-            <p>Start free with Auto, or choose the model you want.</p>
+            <p>Use free AI models at 0 credits, then upgrade only when you need flagship capability.</p>
           </div>
           <button className="primary-button" onClick={() => begin()}>
             Get Started <Icon name="arrow" />

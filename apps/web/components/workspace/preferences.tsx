@@ -9,6 +9,7 @@ import {
   type ProviderConnection,
 } from '@/lib/api';
 import { useFeedback } from '@/components/ui/feedback-modal';
+import { ResourceSkeleton } from '@/components/ui/skeleton';
 
 export type Preferences = {
   displayName: string;
@@ -247,11 +248,7 @@ export function UserPreferences() {
             </div>
           </form>
         ) : (
-          !error && (
-            <p className="muted" role="status">
-              Loading preferences…
-            </p>
-          )
+          !error && <ResourceSkeleton rows={2} />
         )}
       </section>
 
@@ -268,9 +265,7 @@ export function UserPreferences() {
         </div>
 
         {!connections ? (
-          <p className="muted" role="status">
-            Loading provider connections…
-          </p>
+          <ResourceSkeleton rows={3} />
         ) : !connections.encryptionReady ? (
           <div className="service-notice" role="status">
             <p>

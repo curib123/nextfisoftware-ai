@@ -30,8 +30,11 @@ export type PublicPlans = {
   checkoutAvailable?: boolean;
   paymentMode?: string;
 };
+
+let publicPlansCache: PublicPlans | undefined;
+
 export function usePlans() {
-  const [data, setData] = useState<PublicPlans>();
+  const [data, setData] = useState<PublicPlans>(() => publicPlansCache);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -40,6 +43,7 @@ export function usePlans() {
       signal: controller.signal,
     })
       .then((value) => {
+        publicPlansCache = value;
         setData(value);
         setError('');
       })
@@ -121,30 +125,61 @@ export function PlanCards({
               </li>
               <li>
                 <Icon name="check" />
-                Auto — Recommended
+                {free
+                  ? 'Free Auto routing across verified free endpoints'
+                  : 'Smart Auto routing across your eligible model pool'}
               </li>
-              {auto && (
-                <li>
-                  <Icon name="check" />
-                  Up to {auto.dailyLimit.toLocaleString()} Auto requests per day
-                </li>
+              {free ? (
+                <>
+                  <li>
+                    <Icon name="check" />
+                    Generous fair-use access instead of a credit meter
+                  </li>
+                  <li>
+                    <Icon name="check" />
+                    Image, PDF, and text-file uploads on compatible free models
+                  </li>
+                </>
+              ) : (
+                auto && (
+                  <li>
+                    <Icon name="check" />
+                    Up to {auto.dailyLimit.toLocaleString()} Auto requests per day
+                  </li>
+                )
               )}
-              {plan.monthlyCredits !== undefined && (
+              {free ? (
                 <li>
                   <Icon name="check" />
-                  {plan.monthlyCredits.toLocaleString()} shared credits per
-                  month
+                  Verified free models cost 0 Nextfi credits
                 </li>
+              ) : (
+                plan.monthlyCredits !== undefined && (
+                  <li>
+                    <Icon name="check" />
+                    {plan.monthlyCredits.toLocaleString()} premium credits per
+                    month for non-free models
+                  </li>
+                )
               )}
-              {Boolean(plan.manualModelCount) && (
+              {free ? (
                 <li>
                   <Icon name="check" />
-                  {plan.manualModelCount} models with manual selection
+                  Manual selection across verified free endpoints
                 </li>
+              ) : (
+                Boolean(plan.manualModelCount) && (
+                  <li>
+                    <Icon name="check" />
+                    {plan.manualModelCount} premium models with manual selection
+                  </li>
+                )
               )}
               <li>
                 <Icon name="check" />
-                Credit prices vary by model and task
+                {free
+                  ? 'Free access is subject to provider availability and fair-use limits'
+                  : 'All free models remain 0 credits; premium prices vary by model and task'}
               </li>
               {Boolean(plan.maxFiles) && (
                 <li>

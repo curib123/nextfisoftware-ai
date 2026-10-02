@@ -241,6 +241,22 @@ describe('smart Auto routing', () => {
     ).toBeUndefined();
   });
 
+  it('free Auto can route image generation without a separate paid image model', () => {
+    const freeImage = model({
+      id: 'free-image',
+      provider: 'GOOGLE',
+      display_name: 'Free image endpoint',
+      free_endpoint: true,
+      capabilities: ['text', 'image_generation'],
+    });
+
+    expect(
+      chooseAutoModel([freeImage], freePoolPolicy(), 'image_generation', {
+        prompt: 'Generate an image of a clean futuristic workspace.',
+      })?.id,
+    ).toBe('free-image');
+  });
+
   it('free Auto includes marked non-NVIDIA endpoints', () => {
     const free = model({
       id: 'google-free',

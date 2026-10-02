@@ -184,19 +184,47 @@ function mapRun(row: RunRow) {
   };
 }
 
+type WorkspaceConfiguration = {
+  plan: DbPlan;
+  policies: DbPolicy[];
+  models: DbModel[];
+};
+
+const configurationCache = new Map<
+  string,
+  { expiresAt: number; value: Promise<WorkspaceConfiguration> }
+>();
+
 async function configuration(userId: string) {
-  const plan = await activePlan(userId);
-  const [policies, models] = await Promise.all([
-    rest<DbPolicy[]>('generation_policies', {
-      admin: true,
-      query: `plan_id=eq.${encodeURIComponent(plan.id)}&enabled=eq.true&select=*&order=bucket.asc`,
-    }),
-    rest<DbModel[]>('ai_models', {
-      admin: true,
-      query: `select=${modelSelect}`,
-    }),
-  ]);
-  return { plan, policies, models };
+  const cached = configurationCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
+  const value = (async (): Promise<WorkspaceConfiguration> => {
+    const plan = await activePlan(userId);
+    const [policies, models] = await Promise.all([
+      rest<DbPolicy[]>('generation_policies', {
+        admin: true,
+        query: `plan_id=eq.${encodeURIComponent(plan.id)}&enabled=eq.true&select=*&order=bucket.asc`,
+      }),
+      rest<DbModel[]>('ai_models', {
+        admin: true,
+        query: `select=${modelSelect}`,
+      }),
+    ]);
+    return { plan, policies, models };
+  })();
+
+  configurationCache.set(userId, {
+    expiresAt: Date.now() + 5_000,
+    value,
+  });
+
+  try {
+    return await value;
+  } catch (error) {
+    configurationCache.delete(userId);
+    throw error;
+  }
 }
 
 function periods(now = new Date()) {
@@ -233,7 +261,9 @@ export async function workspaceModels(user: Authenticated) {
     .filter((model) => {
       const policy = policyByModel.get(model.id);
       const freeAvailable =
-        freePlan && isFreeEndpointEligible(model, 'chat', 'manual');
+        freePlan &&
+        (isFreeEndpointEligible(model, 'chat', 'manual') ||
+          isFreeEndpointEligible(model, 'image_generation', 'manual'));
       const providerHealthy =
         model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY';
       const planAvailable = Boolean(
@@ -256,8 +286,14 @@ export async function workspaceModels(user: Authenticated) {
     .map((model) => {
       const policy = policyByModel.get(model.id);
       const freeAvailable =
-        freePlan && isFreeEndpointEligible(model, 'chat', 'manual');
-      const effectivePolicy = policy ?? (freeAvailable ? freePolicy : undefined);
+        freePlan &&
+        (isFreeEndpointEligible(model, 'chat', 'manual') ||
+          isFreeEndpointEligible(model, 'image_generation', 'manual'));
+      const effectivePolicy =
+        policy ??
+        (freeAvailable && freePolicy
+          ? effectiveFreePoolPolicy(freePolicy)
+          : undefined);
       const providerHealthy =
         model.provider !== 'NVIDIA' || model.health_status === 'HEALTHY';
       const planAvailable = Boolean(
@@ -289,6 +325,32 @@ export async function workspaceModels(user: Authenticated) {
 function envLimit(name: string, fallback: number) {
   const value = Number(process.env[name]);
   return Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function effectiveFreePoolPolicy(policy: DbPolicy): DbPolicy {
+  if (policy.routing?.freeEndpointPool !== true) return policy;
+  return {
+    ...policy,
+    daily_limit: Math.max(
+      policy.daily_limit,
+      envLimit('FREE_FAIR_USE_DAILY_LIMIT', 1000),
+    ),
+    monthly_limit: Math.max(
+      policy.monthly_limit,
+      envLimit('FREE_FAIR_USE_MONTHLY_LIMIT', 30000),
+    ),
+    max_files: Math.max(
+      policy.max_files,
+      Math.min(envLimit('FREE_MAX_FILES', 3), 10),
+    ),
+    max_file_bytes: Math.max(
+      policy.max_file_bytes,
+      Math.min(envLimit('FREE_MAX_FILE_BYTES', 5_000_000), 20_000_000),
+    ),
+    allowed_features: [
+      ...new Set([...policy.allowed_features, 'chat', 'image_generation']),
+    ],
+  };
 }
 
 function byokPolicy(): DbPolicy {
@@ -366,7 +428,8 @@ export async function workspaceUsage(user: Authenticated) {
       daily: p.nextDay.toISOString(),
       monthly: p.nextMonth.toISOString(),
     },
-    allowances: policies.map((policy) => {
+    allowances: policies.map((configuredPolicy) => {
+      const policy = effectiveFreePoolPolicy(configuredPolicy);
       const model = models.find((item) => item.id === policy.model_id);
       const daily = counters.find(
         (row) => row.bucket === policy.bucket && row.period === 'DAILY' && same(row.period_start, p.day),
@@ -430,6 +493,30 @@ export async function workspaceUsage(user: Authenticated) {
       maxFileBytes: byok.max_file_bytes,
       creditCosts: { chat: 0, image_generation: 0 },
     },
+  };
+}
+
+export async function workspaceBootstrap(user: Authenticated) {
+  const request = new Request('https://nextfi.local/api/v1/workspace/bootstrap', {
+    method: 'GET',
+  });
+  const [catalog, models, usage, projects, prompts, preference] =
+    await Promise.all([
+      catalogModels(),
+      workspaceModels(user),
+      workspaceUsage(user),
+      projectsRoute(request, user),
+      promptsRoute(request, user),
+      preferences(request, user),
+    ]);
+
+  return {
+    catalog,
+    models,
+    usage,
+    projects,
+    prompts,
+    preferences: preference,
   };
 }
 
@@ -758,8 +845,15 @@ export async function uploadFile(
   const id = routeId(conversationId, 'Conversation ID');
   await ownedConversation(user, id);
   const { policies } = await configuration(user.profile.id);
-  const maxBytes = Math.max(0, ...policies.map((policy) => policy.max_file_bytes));
-  const maxFiles = Math.max(0, ...policies.map((policy) => policy.max_files));
+  const effectivePolicies = policies.map(effectiveFreePoolPolicy);
+  const maxBytes = Math.max(
+    0,
+    ...effectivePolicies.map((policy) => policy.max_file_bytes),
+  );
+  const maxFiles = Math.max(
+    0,
+    ...effectivePolicies.map((policy) => policy.max_files),
+  );
   if (!maxFiles) throw new ApiError('File uploads are not included in your plan.', 403);
   const form = await request.formData();
   const file = form.get('file');
@@ -1019,7 +1113,8 @@ async function generateOnce(
   system: string,
 ) {
   const creditUnits = modelCredits(model, policy, 'chat');
-  if (!creditUnits) throw new ApiError('This model does not have safe pricing configured.', 409);
+  if (creditUnits === null)
+    throw new ApiError('This model does not have safe pricing configured.', 409);
   const requestId = randomUUID();
   await reserve(user.profile.id, requestId, policy, plan, creditUnits, createHash('sha256').update(prompt).digest('hex'));
   const userMessage = await insertMessage(user, conversationId, 'user', prompt, 'SUCCEEDED', null, null, null, requestId);
@@ -1163,6 +1258,9 @@ export async function streamMessage(
     model = candidateModels[0];
   }
 
+  if (model?.free_endpoint === true)
+    policy = effectiveFreePoolPolicy(policy);
+
   if (!policy.allowed_features.includes(feature))
     throw new ApiError('This task is not included in the selected allowance.', 403);
   if (content.length > policy.max_input_chars)
@@ -1178,7 +1276,7 @@ export async function streamMessage(
     throw new ApiError('This model does not support image generation.', 403);
 
   const serverCredits =
-    mode === 'BYOK'
+    mode === 'BYOK' || model.free_endpoint === true
       ? 0
       : mode === 'AUTO'
         ? autoCredits(policy, feature)
@@ -1190,7 +1288,7 @@ export async function streamMessage(
     const maxCredits = integerValue(
       input.maxCredits ?? serverCredits,
       'Maximum credits',
-      1,
+      0,
       100000,
     );
     if (serverCredits > maxCredits)

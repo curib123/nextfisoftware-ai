@@ -9,21 +9,29 @@ import {
 } from 'react';
 import { apiRequest } from '@/lib/api';
 type PublicSettings = Record<string, string | boolean | number>;
+let publicSettingsCache: PublicSettings | undefined;
 const SiteSettingsContext = createContext({
   settings: {} as PublicSettings,
   refresh: async () => {},
 });
 export function SiteSettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<PublicSettings>({});
+  const [settings, setSettings] = useState<PublicSettings>(
+    () => publicSettingsCache ?? {},
+  );
   const refresh = useCallback(async () => {
-    setSettings(await apiRequest<PublicSettings>('/settings/public'));
+    const next = await apiRequest<PublicSettings>('/settings/public');
+    publicSettingsCache = next;
+    setSettings(next);
   }, []);
   useEffect(() => {
     const controller = new AbortController();
     void apiRequest<PublicSettings>('/settings/public', {
       signal: controller.signal,
     })
-      .then(setSettings)
+      .then((next) => {
+        publicSettingsCache = next;
+        setSettings(next);
+      })
       .catch(() => {});
     return () => controller.abort();
   }, []);
@@ -49,7 +57,7 @@ export function useSiteSettings() {
     siteName,
     tagline: String(
       settings['branding.tagline'] ||
-        'Multiple AI models. One smarter workspace.',
+        'Free AI models in one app. Upgrade only for flagship power.',
     ),
     announcement: String(settings['content.announcement'] || ''),
   };

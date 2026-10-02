@@ -67,7 +67,11 @@ const modelFields: Field[] = [
     type: 'checkbox',
   },
   { key: 'autoAvailable', label: 'Available to Auto', type: 'checkbox' },
-  { key: 'freeEndpoint', label: 'Verified free endpoint', type: 'checkbox' },
+  {
+    key: 'freeEndpoint',
+    label: 'Free access — 0 Nextfi credits',
+    type: 'checkbox',
+  },
   {
     key: 'defaultReasoningLevel',
     label: 'Default reasoning level',
@@ -96,7 +100,7 @@ const modelFields: Field[] = [
   },
   {
     key: 'creditCost',
-    label: 'Minimum credits per generation (provider costs may require more)',
+    label: 'Premium minimum credits (ignored when Free access is enabled)',
     type: 'number',
     min: 1,
     max: 100000,
@@ -880,6 +884,17 @@ export function AdminRegistry({ plans = false }: { plans?: boolean }) {
               </div>
             </div>
             <div className="row-actions">
+              {!plans && (
+                <span
+                  className={
+                    item.freeEndpoint
+                      ? 'model-free-badge'
+                      : 'model-premium-badge'
+                  }
+                >
+                  {item.freeEndpoint ? 'Free · 0 credits' : 'Premium'}
+                </span>
+              )}
               <span
                 className={`status-badge ${(plans ? item.isActive : item.enabled) ? 'active' : ''}`}
               >

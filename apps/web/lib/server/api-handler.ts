@@ -34,6 +34,7 @@ import {
   streamMessage,
   uploadFile,
   workflowsRoute,
+  workspaceBootstrap,
   workspaceModels,
   workspaceUsage,
 } from './workspace';
@@ -125,6 +126,8 @@ export async function handleApi(request: NextRequest, path: string[]) {
 
     if (root === 'workspace') {
       const user = await requireUser(request);
+      if (second === 'bootstrap' && request.method === 'GET')
+        return json(await workspaceBootstrap(user));
       if (second === 'models' && request.method === 'GET')
         return json(await workspaceModels(user));
       if (second === 'provider-connections') {
